@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import SelectGame from './pages/SelectGame';
 import Pong from './pages/Pong';
@@ -8,13 +8,7 @@ import './App.css'
 
 export default function App() {
   return (
-    <div> {/*avec du relative pour allee dessus le background*/}
-      {/* <div
-        className="absolute inset-0 bg-cover bg-center z-0"
-        style={{
-          backgroundImage: "url('/background.gif')",
-        }}
-      /> */}
+    <div>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/select-game" element={<SelectGame />} />
