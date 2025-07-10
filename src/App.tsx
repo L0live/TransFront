@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import SelectGame from './pages/SelectGame';
-import Pong from './pages/Pong';
+import GameCanvas from './pages/Pong';
 import Blackjack from './pages/Blackjack';
 import Tournament from './pages/Tournament';
 import './App.css'
@@ -12,7 +12,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/select-game" element={<SelectGame />} />
-        <Route path="/pong" element={<Pong />} />
+        <Route path="/pong" element={<GameCanvas />} />
         <Route path="/blackjack" element={<Blackjack />} />
         <Route path="/tournament" element={<Tournament />} />
         <Route path="*" element={<h1>404 - Not Found</h1>} />
