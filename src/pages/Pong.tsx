@@ -264,21 +264,16 @@ export default function GameCanvas() {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    const speed = 1;
+    const speed = 1.5;
 
     // calcule les vecteurs de la balle
     function defineBallVectors() {
       const signX = Math.sign(ball.speed.x || Math.random() * 2 - 1); // si vx est 0, on choisit aléatoirement la direction
+      const signAngle = Math.sign(Math.random() * 2 - 1);
 
-      // On tire un vy aléatoire entre -speed et speed, excluant [-1, 1]
-      let vy: number;
-      do {
-        vy = (Math.random() * 2 - 1) * (speed / 1.5); // entre -speed et +speed
-      } while (Math.abs(vy) < 1); // on évite les vy trop petits
-
-      // vx est déduit de la vitesse constante
-      ball.speed.x = Math.sqrt(speed * speed - vy * vy) * signX;
-      ball.speed.y = vy;
+      ball.speed.y = 0;
+      ball.speed.x = speed * signX;
+      ball.speed.rotateDeg((Math.random() * 40 + 10) * signAngle);
     }
 
     function move(deltaTime: number) {
