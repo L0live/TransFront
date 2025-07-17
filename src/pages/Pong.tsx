@@ -50,7 +50,7 @@ export default function GameCanvas() {
       position: Victor;
       width: number;
       height: number;
-	  speed: number;
+	    speed: number;
     };
 
     const ball: Ball = {
