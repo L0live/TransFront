@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Engine, Scene,
   FreeCamera, HemisphericLight,
-  Vector3, Color3, Color4, GlowLayer,
+  Vector3, Color3, GlowLayer,
   StandardMaterial, MeshBuilder,
   ParticleSystem, Texture
 } from "@babylonjs/core";
@@ -47,9 +47,10 @@ const BabylonScene: React.FC = () => {
 	    speed: number;
     };
 
+    const ballRadius = height / 43 / 2; // 21 spawning balls
     const ball: Ball = {
-      radius: height / 43 / 2, // 21 spawning balls
-      position: new Victor(width / 2, height / 2 + 8),
+      radius: ballRadius,
+      position: new Victor(width / 2, height / 2 + ballRadius),
       speed: new Victor(0, 0),
     };
     const paddleLeft: Paddle = {
@@ -332,13 +333,13 @@ const BabylonScene: React.FC = () => {
     boundMat.diffuseColor = new Color3(0, 0, 0);
 
     const boundUp = MeshBuilder.CreateBox("boundUp", {
-      height: 0.5, width: width - 2, depth: 0.2
+      height: 0.2, width: width - 2, depth: 0.2
     }, scene);
     boundUp.material = boundMat;
     boundUp.position.set(0, 0.5, -height / 2);
 
     const boundDown = MeshBuilder.CreateBox("boundDown", {
-      height: 0.5, width: width - 2, depth: 0.2
+      height: 0.2, width: width - 2, depth: 0.2
     }, scene);
     boundDown.material = boundMat;
     boundDown.position.set(0, 0.5, height / 2);

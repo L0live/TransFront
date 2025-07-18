@@ -36,7 +36,7 @@ export default function BlackPongApp() {
       </h1>
       <h1 className="text-4xl font-bold mb-8">Select a Game</h1>
       <div className="flex flex-wrap justify-center gap-8">
-        <Link to="/pong">
+        <Link to="/pong3D">
           <button
             className="w-160 h-160 bg-[#646cff] rounded-xl hover:w-164 hover:h-164 hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2] hover:transition-[filter] duration-300"
           >
