@@ -48,9 +48,9 @@ const BabylonScene: React.FC = () => {
     };
 
     const ball: Ball = {
+      radius: height / 43 / 2, // 21 spawning balls
       position: new Victor(width / 2, height / 2 + 8),
       speed: new Victor(0, 0),
-      radius: height / 43 / 2, // 21 spawning balls
     };
     const paddleLeft: Paddle = {
       position: new Victor(ball.radius * 1.5, height / 2 - ball.radius * 6),
@@ -258,7 +258,7 @@ const BabylonScene: React.FC = () => {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    const speed = 0.02;
+    const speed = 0.01;
 
     // calcule les vecteurs de la balle
     function defineBallVectors() {
@@ -271,13 +271,15 @@ const BabylonScene: React.FC = () => {
     }
 
     function move(deltaTime: number) {
-      paddleLeft.speed = 0;
-      if (keys.current["KeyW"]) paddleLeft.speed -= speed;
-      if (keys.current["KeyS"]) paddleLeft.speed += speed;
 
+      // Reverse the keys to work good
       paddleRight.speed = 0;
-      if (keys.current["ArrowUp"]) paddleRight.speed -= speed;
-      if (keys.current["ArrowDown"]) paddleRight.speed += speed;
+      if (keys.current["KeyW"]) paddleRight.speed -= speed;
+      if (keys.current["KeyS"]) paddleRight.speed += speed;
+
+      paddleLeft.speed = 0;
+      if (keys.current["ArrowUp"]) paddleLeft.speed -= speed;
+      if (keys.current["ArrowDown"]) paddleLeft.speed += speed;
 
 
       const paddleLeftPath = new Path(
@@ -330,13 +332,13 @@ const BabylonScene: React.FC = () => {
     boundMat.diffuseColor = new Color3(0, 0, 0);
 
     const boundUp = MeshBuilder.CreateBox("boundUp", {
-      height: 0.5, width: width - 1, depth: 0.2
+      height: 0.5, width: width - 2, depth: 0.2
     }, scene);
     boundUp.material = boundMat;
     boundUp.position.set(0, 0.5, -height / 2);
 
     const boundDown = MeshBuilder.CreateBox("boundDown", {
-      height: 0.5, width: width - 1, depth: 0.2
+      height: 0.5, width: width - 2, depth: 0.2
     }, scene);
     boundDown.material = boundMat;
     boundDown.position.set(0, 0.5, height / 2);
@@ -348,46 +350,70 @@ const BabylonScene: React.FC = () => {
     paddleMat.emissiveColor = paddleColor;
 
     const paddleLeft3D = MeshBuilder.CreateBox("paddleLeft3D", {
-      height: 0.8, width: 0.3, depth: 4
+      height: paddleLeft.width, width: 0.3, depth: paddleLeft.height
     }, scene);
     paddleLeft3D.material = paddleMat;
     paddleLeft3D.position.set(-width / 2, 0.5, 0);
 
     const paddleRight3D = MeshBuilder.CreateBox("paddleRight3D", {
-      height: 0.8, width: 0.3, depth: 4
+      height: paddleRight.width, width: 0.3, depth: paddleRight.height
     }, scene);
     paddleRight3D.material = paddleMat;
     paddleRight3D.position.set(width / 2, 0.5, 0);
 
     // Balle
     const ballColor = new Color3(0, 0.8, 0);
-    const ball3D = MeshBuilder.CreateSphere("ball3D", { diameter: 1 }, scene);
+    const ball3D = MeshBuilder.CreateSphere("ball3D", { diameter: ball.radius * 2 }, scene);
     const ballMat = new StandardMaterial("ballMat", scene);
     ballMat.diffuseColor = ballColor;
     ballMat.emissiveColor = ballColor;
     ball3D.material = ballMat;
     ball3D.position.set(0, 0.5, 0);
 
-    const createParticle = (emitter: any, color: Color4) => {
-      const ps = new ParticleSystem("particles", 2000, scene);
+    // Particules
+    const createParticles = () => {
+      // Ball particles
+      const ps = new ParticleSystem("ballParticles", 2000, scene);
       ps.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", scene);
-      ps.emitter = emitter;
+      ps.emitter = ball3D;
       ps.minEmitBox = new Vector3(0, 0, 0);
       ps.maxEmitBox = new Vector3(0, 0, 0);
-      ps.color1 = color;
-      ps.minSize = 2;
-      ps.maxSize = 2;
-      ps.minLifeTime = 0.1;
-      ps.maxLifeTime = 0.1;
+      ps.color1 = ballColor.toColor4(1);
+      ps.minLifeTime = 0.2;
+      ps.maxLifeTime = 0.2;
       ps.emitRate = 500;
+      ps.addSizeGradient(0, ball.radius * 4);
+      ps.addSizeGradient(1, ball.radius * 2);
       ps.start();
+
+      // Paddle particles
+      const paddleParticules = (emitter: any) => {
+        const ps = new ParticleSystem("paddleParticles", 2000, scene);
+        ps.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        ps.emitter = emitter;
+        ps.minEmitBox = new Vector3(0, 0, 0);
+        ps.maxEmitBox = new Vector3(0, 0, 0);
+        ps.color1 = paddleColor.toColor4(1);
+        ps.minSize = paddleLeft.width * 2;
+        ps.maxSize = paddleLeft.width * 2;
+        ps.minLifeTime = 0.2;
+        ps.maxLifeTime = 0.2;
+        ps.emitRate = 500;
+        // ps.addColorGradient(0, paddleColor.toColor4(1));   // Couleur au début : 1
+        // ps.addColorGradient(1, paddleColor.toColor4(0));
+        ps.start();
+      }
+
+      // paddleParticules(paddleLeft3D);
+      // paddleParticules(paddleRight3D);
     };
 
-    createParticle(ball3D, ballColor.toColor4(1));
+    createParticles();
 
     scene.onBeforeRenderObservable.add(() => {
       const deltaTime = engine.getDeltaTime(); // en millisecondes
 
+      // Update positions with collisions
       move(deltaTime);
 
       // reset ball if out of bounds
@@ -400,9 +426,14 @@ const BabylonScene: React.FC = () => {
         defineBallVectors();
       }
 
-      ball3D.position = new Vector3(ball.position.x - width / 2, 0.5, ball.position.y - height / 2);
-      paddleLeft3D.position = new Vector3(paddleLeft.position.x - width / 2, 0.5, paddleLeft.position.y - height / 2);
-      paddleRight3D.position = new Vector3(paddleRight.position.x - width / 2, 0.5, paddleRight.position.y - height / 2);
+      ball3D.position = new Vector3(-width / 2, 0.5, -height / 2);
+      paddleLeft3D.position = new Vector3(-width / 2 + paddleLeft.width / 2, 0.5, -height / 2 + paddleLeft.height / 2);
+      paddleRight3D.position = new Vector3(-width / 2 + paddleRight.width / 2, 0.5, -height / 2 + paddleRight.height / 2);
+
+      // Update positions
+      ball3D.position.addInPlace(new Vector3(ball.position.x, 0, ball.position.y));
+      paddleLeft3D.position.addInPlace(new Vector3(paddleLeft.position.x, 0, paddleLeft.position.y));
+      paddleRight3D.position.addInPlace(new Vector3(paddleRight.position.x, 0, paddleRight.position.y));
     });
 
     defineBallVectors();
