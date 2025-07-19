@@ -34,7 +34,7 @@ const BabylonScene: React.FC = () => {
     const height = 20;
 
     // Vitesse globale
-    const speed = 0.01;
+    const speed = 0.015;
 
     // Score
     let LeftScore = 0;
@@ -285,8 +285,8 @@ const BabylonScene: React.FC = () => {
       const scene = new Scene(engine);
 
       // Camera
-      const camera = new FreeCamera("camera1", new Vector3(0, 25, 0), scene);
-      camera.setTarget(new Vector3(0, 0, 0));
+      const camera = new FreeCamera("camera1", new Vector3(0, 20, 15), scene);
+      camera.setTarget(new Vector3(0, 0, 2));
       // camera.attachControl(canvasRef.current, true); // Bouger la cam
 
       // Lumière
@@ -349,8 +349,8 @@ const BabylonScene: React.FC = () => {
       ballParticules.minEmitBox = new Vector3(0, 0, 0);
       ballParticules.maxEmitBox = new Vector3(0, 0, 0);
       ballParticules.color1 = ballColor.toColor4(1);
-      ballParticules.minLifeTime = 0.2;
-      ballParticules.maxLifeTime = 0.2;
+      ballParticules.minLifeTime = speed * 10;
+      ballParticules.maxLifeTime = speed * 10;
       ballParticules.emitRate = 500;
       ballParticules.addSizeGradient(0, ball.radius * 4);
       ballParticules.addSizeGradient(1, ball.radius * 2);
@@ -362,14 +362,14 @@ const BabylonScene: React.FC = () => {
       collisionParticles.emitter = ball3D;
       collisionParticles.minEmitBox = new Vector3(0, 0, 0);
       collisionParticles.maxEmitBox = new Vector3(0, 0, 0);
-      collisionParticles.minEmitPower = 1;
-      collisionParticles.maxEmitPower = 3;
+      collisionParticles.minEmitPower = speed * 200;
+      collisionParticles.maxEmitPower = speed * 500;
       collisionParticles.color1 = ballColor.toColor4(1);
       collisionParticles.colorDead = ballColor.toColor4(0);
       collisionParticles.minSize = 0.1;
       collisionParticles.maxSize = 0.1;
-      collisionParticles.minLifeTime = 1;
-      collisionParticles.maxLifeTime = 2;
+      collisionParticles.minLifeTime = speed * 100;
+      collisionParticles.maxLifeTime = speed * 200;
       collisionParticles.manualEmitCount = 0;
       collisionParticles.disposeOnStop = false;
       collisionParticles.start();
