@@ -24,15 +24,21 @@ const BabylonScene: React.FC = () => {
     const handleBlur = () => {
       keys.current = {};
     };
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", handleBlur);
-    
-    const engine = new Engine(canvasRef.current, true);
-    const scene = new Scene(engine);
 
+    // Dimensions du terrain
     const width = 30;
     const height = 20;
+
+    // Vitesse globale
+    const speed = 0.01;
+
+    // Score
+    let LeftScore = 0;
+    let RightScore = 0;
 
     // Éléments du jeu
     type Ball = {
@@ -47,222 +53,8 @@ const BabylonScene: React.FC = () => {
 	    speed: number;
     };
 
-    const ballRadius = height / 43 / 2; // 21 spawning balls
-    const ball: Ball = {
-      radius: ballRadius,
-      position: new Victor(width / 2, height / 2 + ballRadius),
-      speed: new Victor(0, 0),
-    };
-    const paddleLeft: Paddle = {
-      position: new Victor(ball.radius * 1.5, height / 2 - ball.radius * 6),
-      width: ball.radius * 1.5,
-      height: ball.radius * 12,
-      speed: 0,
-    };
-    const paddleRight: Paddle = {
-      position: new Victor(width - ball.radius * 3, height / 2 - ball.radius * 6),
-      width: ball.radius * 1.5,
-      height: ball.radius * 12,
-      speed: 0,
-    };
-
-    // balls spawn position
-    let ballsSpawn: number[] = [];
-    for (let i = ball.radius * 3; i < height; i += ball.radius * 4) {
-      ballsSpawn.push(i);
-    }
-
-    // Score
-    let LeftScore = 0;
-    let RightScore = 0;
-
-    // function draw() {
-    //   // fond noir
-    //   ctx.fillStyle = "black";
-    //   ctx.fillRect(0, 0, width, height);
-
-    //   // middle font balls
-    //   ctx.fillStyle = "grey";
-    //   ctx.beginPath();
-    //   for (let i of ballsSpawn) {
-    //     ctx.arc(width / 2, i, ball.radius, 0, Math.PI * 2);
-    //     ctx.fill();
-    //   }
-
-    //   ctx.fillStyle = "white";
-    //   // score
-    //   ctx.font = `${ball.radius * 15}px 'Consolas'`;
-    //   ctx.textAlign = "center";
-    //   ctx.fillText(`${LeftScore}`, width / 4, ball.radius * 15);
-    //   ctx.fillText(`${RightScore}`, (width * 3) / 4, ball.radius * 15);
-
-    //   // balle
-    //   ctx.beginPath();
-    //   ctx.arc(ball.position.x, ball.position.y, ball.radius, 0, Math.PI * 2);
-    //   ctx.fill();
-
-    //   // raquettes
-    //   ctx.fillRect(
-    //     paddleLeft.position.x,
-    //     paddleLeft.position.y,
-    //     paddleLeft.width,
-    //     paddleLeft.height
-    //   );
-    //   ctx.fillRect(
-    //     paddleRight.position.x,
-    //     paddleRight.position.y,
-    //     paddleRight.width,
-    //     paddleRight.height
-    //   );
-    // }
-
-    function paddleCollision(
-      path: Path,
-      paddleHeight: number,
-      terrainUpperBound: number,
-      terrainLowerBound: number
-    ): Path {
-      // moving up (negative y)
-      if (
-        path.speed.y < 0 &&
-        path.speed.y * path.deltaTime < terrainUpperBound - path.position.y
-      )
-        return new Path(new Victor(path.position.x, terrainUpperBound));
-      // moving down (positive y)
-      else if (
-        path.speed.y > 0 &&
-        path.speed.y * path.deltaTime >
-          terrainLowerBound - (path.position.y + paddleHeight)
-      )
-        return new Path(
-          new Victor(path.position.x, terrainLowerBound - paddleHeight)
-        );
-      // no collision
-      else
-        return new Path(
-          new Victor(
-            path.position.x,
-            path.position.y + path.speed.y * path.deltaTime
-          )
-        );
-    }
-
-    function ballCollision(
-      path: Path,
-      ballRadius: number,
-      terrainUpperBound: number,
-      terrainLowerBound: number,
-      paddleLeft: Paddle,
-      paddleRight: Paddle
-    ): Path {
-      console.log(`Ball({${path.position.toString()}}, {${path.speed.toString()}})`);
-      const trajectory = path.speed.clone().multiplyScalar(path.deltaTime);
-      const validTrajectoryPortions: { [key: string]: number } = {};
-
-      // Find all the possible collisions
-
-      // Terrain
-      const distUpperBound = terrainUpperBound - (path.position.y - ballRadius);
-      const distLowerBound = terrainLowerBound - (path.position.y + ballRadius);
-      const portionUpperBound = distUpperBound / trajectory.y;
-      const portionLowerBound = distLowerBound / trajectory.y;
-      if (path.speed.y < 0 && portionUpperBound >= 0 && portionUpperBound <= 1)
-        validTrajectoryPortions["terrainUpperBound"] = portionUpperBound;
-      else if (
-        path.speed.y > 0 &&
-        portionLowerBound >= 0 &&
-        portionLowerBound <= 1
-      )
-        validTrajectoryPortions["terrainLowerBound"] = portionLowerBound;
-
-      // Paddles
-      const distLeftPaddle =
-        paddleLeft.position.x +
-        paddleLeft.width -
-        (path.position.x - ballRadius);
-      const distRightPaddle =
-        paddleRight.position.x - (path.position.x + ballRadius);
-      const portionLeftPaddle = distLeftPaddle / trajectory.x;
-      const portionRightPaddle = distRightPaddle / trajectory.x;
-      if (
-        path.speed.x < 0 &&
-        portionLeftPaddle >= 0 &&
-        portionLeftPaddle <= 1
-      ) {
-        // vertical bounds
-        const yCollision = path.position.y + trajectory.y * portionLeftPaddle;
-        if (
-          yCollision >= paddleLeft.position.y &&
-          yCollision <= paddleLeft.position.y + paddleLeft.height
-        )
-          validTrajectoryPortions["paddleLeft"] = portionLeftPaddle;
-      } else if (
-        path.speed.x > 0 &&
-        portionRightPaddle >= 0 &&
-        portionRightPaddle <= 1
-      ) {
-        // vertical bounds
-        const yCollision = path.position.y + trajectory.y * portionRightPaddle;
-        if (
-          yCollision >= paddleRight.position.y &&
-          yCollision <= paddleRight.position.y + paddleRight.height
-        )
-          validTrajectoryPortions["paddleRight"] = portionRightPaddle;
-      }
-
-      // Find the smalles delta
-      let collisionKey: string | null = null;
-      let minimumPortion = 1;
-
-      for (const key in validTrajectoryPortions) {
-        if (validTrajectoryPortions[key] < minimumPortion) {
-          minimumPortion = validTrajectoryPortions[key];
-          collisionKey = key;
-        }
-      }
-
-      if (collisionKey === null) return new Path(path).move();
-
-      // if (collisionMagnitude === 0) return new Path(path.position.clone()); //! POTENTIALLY WRONG
-      if (minimumPortion === 0) {
-        const newPath = new Path(path);
-        newPath.deltaTime = 0;
-        console.log(`collision stuck`)
-        return newPath;
-      } //! POTENTIALLY WRONG
-
-      const newPath = new Path(path).move(
-        validTrajectoryPortions[collisionKey]
-      );
-      if (newPath.deltaTime < 1e-6) {
-        newPath.deltaTime = 0;
-      }
-      switch (collisionKey) {
-        case "terrainUpperBound":
-        case "terrainLowerBound":
-          // newPath.speed.invertY();
-          newPath.speed.y = -newPath.speed.y;
-          break;
-        case "paddleLeft":
-        case "paddleRight":
-          // newPath.speed.invertX();
-          newPath.speed.x = -newPath.speed.x;
-          break;
-        default:
-      }
-      console.log(collisionKey);
-      return newPath;
-    }
-
-    // fonction pour générer un entier aléatoire entre min et max
-    function getRandomInt(min: number, max: number): number {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    const speed = 0.01;
-
     // calcule les vecteurs de la balle
-    function defineBallVectors() {
+    function defineBallVectors(ball: Ball) {
       const signX = Math.sign(ball.speed.x || Math.random() * 2 - 1); // si vx est 0, on choisit aléatoirement la direction
       const signAngle = Math.sign(Math.random() * 2 - 1);
 
@@ -271,6 +63,41 @@ const BabylonScene: React.FC = () => {
       ball.speed.rotateDeg((Math.random() * 40 + 10) * signAngle);
     }
 
+    // Initialisation de la balle et des raquettes
+    function initializeGameElements() {
+      // Init ball
+      const ballRadius = height / 43 / 2; // 21 spawning balls
+      const ball: Ball = {
+        radius: ballRadius,
+        position: new Victor(width / 2, height / 2 + ballRadius),
+        speed: new Victor(0, 0),
+      };
+      defineBallVectors(ball);
+
+      // Init paddles
+      const paddleLeft: Paddle = {
+        position: new Victor(ball.radius * 1.5, height / 2 - ball.radius * 6),
+        width: ball.radius * 1.5,
+        height: ball.radius * 12,
+        speed: 0,
+      };
+      const paddleRight: Paddle = {
+        position: new Victor(width - ball.radius * 3, height / 2 - ball.radius * 6),
+        width: ball.radius * 1.5,
+        height: ball.radius * 12,
+        speed: 0,
+      };
+
+      // balls spawn positions
+      let ballSpawn: number[] = [];
+      for (let i = ball.radius * 3; i < height; i += ball.radius * 4) {
+        ballSpawn.push(i);
+      }
+
+      return { ball, paddleLeft, paddleRight, ballSpawn };
+    }
+
+    // Déplace les éléments du jeu et gère les collisions
     function move(deltaTime: number) {
 
       // Reverse the keys to work good
@@ -294,6 +121,141 @@ const BabylonScene: React.FC = () => {
         deltaTime
       );
 
+      function paddleCollision(
+        path: Path,
+        paddleHeight: number,
+        terrainUpperBound: number,
+        terrainLowerBound: number
+      ): Path {
+        // moving up (negative y)
+        if (
+          path.speed.y < 0 &&
+          path.speed.y * path.deltaTime < terrainUpperBound - path.position.y
+        )
+          return new Path(new Victor(path.position.x, terrainUpperBound));
+        // moving down (positive y)
+        else if (
+          path.speed.y > 0 &&
+          path.speed.y * path.deltaTime >
+            terrainLowerBound - (path.position.y + paddleHeight)
+        )
+          return new Path(
+            new Victor(path.position.x, terrainLowerBound - paddleHeight)
+          );
+        // no collision
+        else
+          return new Path(
+            new Victor(
+              path.position.x,
+              path.position.y + path.speed.y * path.deltaTime
+            )
+          );
+      }
+
+      function ballCollision(
+        path: Path,
+        ballRadius: number,
+        terrainUpperBound: number,
+        terrainLowerBound: number,
+        paddleLeft: Paddle,
+        paddleRight: Paddle
+      ): Path {
+        const trajectory = path.speed.clone().multiplyScalar(path.deltaTime);
+        const validTrajectoryPortions: { [key: string]: number } = {};
+
+        // Find all the possible collisions
+
+        // Terrain
+        const distUpperBound = terrainUpperBound - (path.position.y - ballRadius);
+        const distLowerBound = terrainLowerBound - (path.position.y + ballRadius);
+        const portionUpperBound = distUpperBound / trajectory.y;
+        const portionLowerBound = distLowerBound / trajectory.y;
+        if (path.speed.y < 0 && portionUpperBound >= 0 && portionUpperBound <= 1)
+          validTrajectoryPortions["terrainUpperBound"] = portionUpperBound;
+        else if (
+          path.speed.y > 0 &&
+          portionLowerBound >= 0 &&
+          portionLowerBound <= 1
+        )
+          validTrajectoryPortions["terrainLowerBound"] = portionLowerBound;
+
+        // Paddles
+        const distLeftPaddle =
+          paddleLeft.position.x +
+          paddleLeft.width -
+          (path.position.x - ballRadius);
+        const distRightPaddle =
+          paddleRight.position.x - (path.position.x + ballRadius);
+        const portionLeftPaddle = distLeftPaddle / trajectory.x;
+        const portionRightPaddle = distRightPaddle / trajectory.x;
+        if (
+          path.speed.x < 0 &&
+          portionLeftPaddle >= 0 &&
+          portionLeftPaddle <= 1
+        ) {
+          // vertical bounds
+          const yCollision = path.position.y + trajectory.y * portionLeftPaddle;
+          if (
+            yCollision >= paddleLeft.position.y &&
+            yCollision <= paddleLeft.position.y + paddleLeft.height
+          )
+            validTrajectoryPortions["paddleLeft"] = portionLeftPaddle;
+        } else if (
+          path.speed.x > 0 &&
+          portionRightPaddle >= 0 &&
+          portionRightPaddle <= 1
+        ) {
+          // vertical bounds
+          const yCollision = path.position.y + trajectory.y * portionRightPaddle;
+          if (
+            yCollision >= paddleRight.position.y &&
+            yCollision <= paddleRight.position.y + paddleRight.height
+          )
+            validTrajectoryPortions["paddleRight"] = portionRightPaddle;
+        }
+
+        // Find the smalles delta
+        let collisionKey: string | null = null;
+        let minimumPortion = 1;
+
+        for (const key in validTrajectoryPortions) {
+          if (validTrajectoryPortions[key] < minimumPortion) {
+            minimumPortion = validTrajectoryPortions[key];
+            collisionKey = key;
+          }
+        }
+
+        if (collisionKey === null) return new Path(path).move();
+
+        // if (collisionMagnitude === 0) return new Path(path.position.clone()); //! POTENTIALLY WRONG
+        if (minimumPortion === 0) {
+          const newPath = new Path(path);
+          newPath.deltaTime = 0;
+          return newPath;
+        } //! POTENTIALLY WRONG
+
+        const newPath = new Path(path).move(
+          validTrajectoryPortions[collisionKey]
+        );
+        if (newPath.deltaTime < 1e-6) {
+          newPath.deltaTime = 0;
+        }
+        switch (collisionKey) {
+          case "terrainUpperBound":
+          case "terrainLowerBound":
+            // newPath.speed.invertY();
+            newPath.speed.y = -newPath.speed.y;
+            break;
+          case "paddleLeft":
+          case "paddleRight":
+            // newPath.speed.invertX();
+            newPath.speed.x = -newPath.speed.x;
+            break;
+          default:
+        }
+        return newPath;
+      }
+
       paddleLeftPath.extend(paddleCollision, paddleLeft.height, 0, height);
       paddleLeft.position.copy(paddleLeftPath.last().position);
       paddleRightPath.extend(paddleCollision, paddleRight.height, 0, height);
@@ -316,117 +278,147 @@ const BabylonScene: React.FC = () => {
       ball.speed.copy(ballPath.last().speed);
     }
 
-    // Camera
-    const camera = new FreeCamera("camera1", new Vector3(0, 25, 0), scene);
-    camera.setTarget(new Vector3(0, 0, 0));
-    // camera.attachControl(canvasRef.current, true); // Bouger la cam
+    // Création de la scène Babylon.js
+    function createScene() {
+      // Initialisation de la scène
+      const engine = new Engine(canvasRef.current, true);
+      const scene = new Scene(engine);
 
-    // Lumière
-    new HemisphericLight("light", new Vector3(0, 1, 0), scene);
+      // Camera
+      const camera = new FreeCamera("camera1", new Vector3(0, 25, 0), scene);
+      camera.setTarget(new Vector3(0, 0, 0));
+      // camera.attachControl(canvasRef.current, true); // Bouger la cam
 
-    // Glow layer
-    const gl = new GlowLayer("glow", scene);
-    gl.intensity = 1;
+      // Lumière
+      new HemisphericLight("light", new Vector3(0, 1, 0), scene);
 
-    // Bords
-    const boundMat = new StandardMaterial("boundMat", scene);
-    boundMat.diffuseColor = new Color3(0, 0, 0);
+      // Glow layer
+      const gl = new GlowLayer("glow", scene);
+      gl.intensity = 1;
 
-    const boundUp = MeshBuilder.CreateBox("boundUp", {
-      height: 0.2, width: width - 2, depth: 0.2
-    }, scene);
-    boundUp.material = boundMat;
-    boundUp.position.set(0, 0.5, -height / 2);
+      // Bords
+      const boundMat = new StandardMaterial("boundMat", scene);
+      boundMat.diffuseColor = new Color3(0, 0, 0);
 
-    const boundDown = MeshBuilder.CreateBox("boundDown", {
-      height: 0.2, width: width - 2, depth: 0.2
-    }, scene);
-    boundDown.material = boundMat;
-    boundDown.position.set(0, 0.5, height / 2);
+      const boundUp = MeshBuilder.CreateBox("boundUp", {
+        height: 0.2, width: width - 2, depth: 0.2
+      }, scene);
+      boundUp.material = boundMat;
+      boundUp.position.set(0, 0.5, -height / 2);
 
-    // Raquettes
-    const paddleColor = new Color3(0.35, 0, 0.5);
-    const paddleMat = new StandardMaterial("paddleMat", scene);
-    paddleMat.diffuseColor = paddleColor;
-    paddleMat.emissiveColor = paddleColor;
+      const boundDown = MeshBuilder.CreateBox("boundDown", {
+        height: 0.2, width: width - 2, depth: 0.2
+      }, scene);
+      boundDown.material = boundMat;
+      boundDown.position.set(0, 0.5, height / 2);
 
-    const paddleLeft3D = MeshBuilder.CreateBox("paddleLeft3D", {
-      height: paddleLeft.width, width: 0.3, depth: paddleLeft.height
-    }, scene);
-    paddleLeft3D.material = paddleMat;
-    paddleLeft3D.position.set(-width / 2, 0.5, 0);
+      // Raquettes
+      const paddleColor = new Color3(0.35, 0, 0.5);
+      const paddleMat = new StandardMaterial("paddleMat", scene);
+      paddleMat.diffuseColor = paddleColor;
+      paddleMat.emissiveColor = paddleColor;
 
-    const paddleRight3D = MeshBuilder.CreateBox("paddleRight3D", {
-      height: paddleRight.width, width: 0.3, depth: paddleRight.height
-    }, scene);
-    paddleRight3D.material = paddleMat;
-    paddleRight3D.position.set(width / 2, 0.5, 0);
+      const paddleLeft3D = MeshBuilder.CreateBox("paddleLeft3D", {
+        height: paddleLeft.width, width: 0.3, depth: paddleLeft.height
+      }, scene);
+      paddleLeft3D.material = paddleMat;
+      paddleLeft3D.position.set(-width / 2, 0.5, 0);
 
-    // Balle
-    const ballColor = new Color3(0, 0.8, 0);
-    const ball3D = MeshBuilder.CreateSphere("ball3D", { diameter: ball.radius * 2 }, scene);
-    const ballMat = new StandardMaterial("ballMat", scene);
-    ballMat.diffuseColor = ballColor;
-    ballMat.emissiveColor = ballColor;
-    ball3D.material = ballMat;
-    ball3D.position.set(0, 0.5, 0);
+      const paddleRight3D = MeshBuilder.CreateBox("paddleRight3D", {
+        height: paddleRight.width, width: 0.3, depth: paddleRight.height
+      }, scene);
+      paddleRight3D.material = paddleMat;
+      paddleRight3D.position.set(width / 2, 0.5, 0);
 
-    // Particules
-    const createParticles = () => {
-      // Ball particles
-      const ps = new ParticleSystem("ballParticles", 2000, scene);
-      ps.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", scene);
-      ps.emitter = ball3D;
-      ps.minEmitBox = new Vector3(0, 0, 0);
-      ps.maxEmitBox = new Vector3(0, 0, 0);
-      ps.color1 = ballColor.toColor4(1);
-      ps.minLifeTime = 0.2;
-      ps.maxLifeTime = 0.2;
-      ps.emitRate = 500;
-      ps.addSizeGradient(0, ball.radius * 4);
-      ps.addSizeGradient(1, ball.radius * 2);
-      ps.start();
+      // Balle
+      const ballColor = new Color3(0, 0.8, 0);
+      const ball3D = MeshBuilder.CreateSphere("ball3D", { diameter: ball.radius * 2 }, scene);
+      const ballMat = new StandardMaterial("ballMat", scene);
+      ballMat.diffuseColor = ballColor;
+      ballMat.emissiveColor = ballColor;
+      ball3D.material = ballMat;
+      ball3D.position.set(0, 0.5, 0);
 
-      // Paddle particles
-      const paddleParticules = (emitter: any) => {
-        const ps = new ParticleSystem("paddleParticles", 2000, scene);
-        ps.particleTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", scene);
-        ps.emitter = emitter;
-        ps.minEmitBox = new Vector3(0, 0, 0);
-        ps.maxEmitBox = new Vector3(0, 0, 0);
-        ps.color1 = paddleColor.toColor4(1);
-        ps.minSize = paddleLeft.width * 2;
-        ps.maxSize = paddleLeft.width * 2;
-        ps.minLifeTime = 0.2;
-        ps.maxLifeTime = 0.2;
-        ps.emitRate = 500;
-        // ps.addColorGradient(0, paddleColor.toColor4(1));   // Couleur au début : 1
-        // ps.addColorGradient(1, paddleColor.toColor4(0));
-        ps.start();
-      }
+      // urlTexture
+      const urlTexture = "https://playground.babylonjs.com/textures/flare.png";
 
-      // paddleParticules(paddleLeft3D);
-      // paddleParticules(paddleRight3D);
-    };
+      // Particules pour la balle
+      const ballParticules = new ParticleSystem("ballParticles", 500, scene);
+      ballParticules.particleTexture = new Texture(urlTexture, scene);
+      ballParticules.emitter = ball3D;
+      ballParticules.minEmitBox = new Vector3(0, 0, 0);
+      ballParticules.maxEmitBox = new Vector3(0, 0, 0);
+      ballParticules.color1 = ballColor.toColor4(1);
+      ballParticules.minLifeTime = 0.2;
+      ballParticules.maxLifeTime = 0.2;
+      ballParticules.emitRate = 500;
+      ballParticules.addSizeGradient(0, ball.radius * 4);
+      ballParticules.addSizeGradient(1, ball.radius * 2);
+      ballParticules.start();
 
-    createParticles();
+      // Particules pour les collisions
+      const collisionParticles = new ParticleSystem("collisionParticles", 1000, scene);
+      collisionParticles.particleTexture = new Texture(urlTexture, scene);
+      collisionParticles.emitter = ball3D;
+      collisionParticles.minEmitBox = new Vector3(0, 0, 0);
+      collisionParticles.maxEmitBox = new Vector3(0, 0, 0);
+      collisionParticles.minEmitPower = 1;
+      collisionParticles.maxEmitPower = 3;
+      collisionParticles.color1 = ballColor.toColor4(1);
+      collisionParticles.colorDead = ballColor.toColor4(0);
+      collisionParticles.minSize = 0.1;
+      collisionParticles.maxSize = 0.1;
+      collisionParticles.minLifeTime = 1;
+      collisionParticles.maxLifeTime = 2;
+      collisionParticles.manualEmitCount = 0;
+      collisionParticles.disposeOnStop = false;
+      collisionParticles.start();
+
+      return {
+        engine,
+        scene,
+        ball3D,
+        paddleLeft3D,
+        paddleRight3D,
+        collisionParticles
+      };
+    }
+
+    const { ball, paddleLeft, paddleRight, ballSpawn } = initializeGameElements();
+
+    const { engine, scene, ball3D, paddleLeft3D, paddleRight3D, collisionParticles } = createScene();
+
+    function triggerCollisionEffect(direction1: Vector3) {
+      collisionParticles.direction1 = new Vector3(-1, 1, -1);
+      collisionParticles.direction2 = new Vector3(1, -1, 1);
+      collisionParticles.direction1.addInPlace(direction1.clone());
+      collisionParticles.direction2.addInPlace(direction1.clone());
+      collisionParticles.manualEmitCount = 300; // nombre de particules par collision
+      collisionParticles.start();
+    }
 
     scene.onBeforeRenderObservable.add(() => {
       const deltaTime = engine.getDeltaTime(); // en millisecondes
 
       // Update positions with collisions
+      const tmpBallSpeed = ball.speed.clone();
       move(deltaTime);
 
-      // reset ball if out of bounds
+      // Trigger collision effect if ball speed changed
+      if (Math.sign(tmpBallSpeed.x) != Math.sign(ball.speed.x) || Math.sign(tmpBallSpeed.y) != Math.sign(ball.speed.y))
+        triggerCollisionEffect(new Vector3(tmpBallSpeed.x * 100, 0, tmpBallSpeed.y * 100));
+
+      // reset ball if out of bounds || In Back-Side ?
       if (ball.position.x - ball.radius < 0 || ball.position.x + ball.radius > width) {
         if (ball.position.x - ball.radius < 0)
           RightScore++;
         else
           LeftScore++;
-        ball.position.x = width / 2, ball.position.y = ballsSpawn[getRandomInt(0, ballsSpawn.length - 1)];
-        defineBallVectors();
+        ball.position.x = width / 2, ball.position.y = ballSpawn[Math.floor(Math.random() * (ballSpawn.length))];
+        defineBallVectors(ball);
       }
 
+      // Offset posiions to match the 3D scene
       ball3D.position = new Vector3(-width / 2, 0.5, -height / 2);
       paddleLeft3D.position = new Vector3(-width / 2 + paddleLeft.width / 2, 0.5, -height / 2 + paddleLeft.height / 2);
       paddleRight3D.position = new Vector3(-width / 2 + paddleRight.width / 2, 0.5, -height / 2 + paddleRight.height / 2);
@@ -436,8 +428,6 @@ const BabylonScene: React.FC = () => {
       paddleLeft3D.position.addInPlace(new Vector3(paddleLeft.position.x, 0, paddleLeft.position.y));
       paddleRight3D.position.addInPlace(new Vector3(paddleRight.position.x, 0, paddleRight.position.y));
     });
-
-    defineBallVectors();
 
     engine.runRenderLoop(() => {
       scene.render();
