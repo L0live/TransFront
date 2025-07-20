@@ -283,10 +283,13 @@ const BabylonScene: React.FC = () => {
       // Initialisation de la scène
       const engine = new Engine(canvasRef.current, true);
       const scene = new Scene(engine);
+      scene.clearColor = new Color3(0, 0, 0).toColor4(); // Couleur de fond
 
       // Camera
-      const camera = new FreeCamera("camera1", new Vector3(0, 20, 15), scene);
-      camera.setTarget(new Vector3(0, 0, 2));
+      const camera = new FreeCamera("camera1", new Vector3(0, 25, 0), scene);
+      camera.setTarget(new Vector3(0, 0, 0));
+      // const camera = new FreeCamera("camera1", new Vector3(0, 20, 15), scene);
+      // camera.setTarget(new Vector3(0, 0, 2));
       // camera.attachControl(canvasRef.current, true); // Bouger la cam
 
       // Lumière
@@ -294,7 +297,7 @@ const BabylonScene: React.FC = () => {
 
       // Glow layer
       const gl = new GlowLayer("glow", scene);
-      gl.intensity = 1;
+      gl.intensity = 2;
 
       // Bords
       const boundMat = new StandardMaterial("boundMat", scene);
@@ -438,6 +441,9 @@ const BabylonScene: React.FC = () => {
 
     return () => {
       window.removeEventListener("resize", resize);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
       engine.dispose();
     };
   }, []);
