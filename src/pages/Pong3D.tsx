@@ -7,8 +7,9 @@ import { Engine, Scene,
 } from "@babylonjs/core";
 import Victor from "victor";
 import Path from "./usePath";
+import { AdvancedDynamicTexture, TextBlock, Control } from "@babylonjs/gui";
 
-const BabylonScene: React.FC = () => {
+const PongScene: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const keys = useRef<Record<string, boolean>>({});
 
@@ -34,7 +35,7 @@ const BabylonScene: React.FC = () => {
     const height = 20;
 
     // Vitesse globale
-    const speed = 0.015;
+    const speed = 0.02;
 
     // Score
     let LeftScore = 0;
@@ -65,49 +66,47 @@ const BabylonScene: React.FC = () => {
 
     // Initialisation de la balle et des raquettes
     function initializeGameElements() {
-      // Init ball
       const ballRadius = height / 43 / 2; // 21 spawning balls
-      const ball: Ball = {
-        radius: ballRadius,
-        position: new Victor(width / 2, height / 2 + ballRadius),
-        speed: new Victor(0, 0),
-      };
-      defineBallVectors(ball);
-
       // Init paddles
       const paddleLeft: Paddle = {
-        position: new Victor(ball.radius * 1.5, height / 2 - ball.radius * 6),
-        width: ball.radius * 1.5,
-        height: ball.radius * 12,
+        position: new Victor(ballRadius * 1.5, height / 2 - ballRadius * 6),
+        width: ballRadius * 1.5,
+        height: ballRadius * 12,
         speed: 0,
       };
       const paddleRight: Paddle = {
-        position: new Victor(width - ball.radius * 3, height / 2 - ball.radius * 6),
-        width: ball.radius * 1.5,
-        height: ball.radius * 12,
+        position: new Victor(width - ballRadius * 3, height / 2 - ballRadius * 6),
+        width: ballRadius * 1.5,
+        height: ballRadius * 12,
         speed: 0,
       };
-
-      // balls spawn positions
-      let ballSpawn: number[] = [];
-      for (let i = ball.radius * 3; i < height; i += ball.radius * 4) {
-        ballSpawn.push(i);
+      // Init ball
+      const ball: Ball = {
+        radius: ballRadius,
+        position: new Victor(0, 0),
+        speed: new Victor(0, 0),
+      };
+      defineBallVectors(ball);
+      if (ball.speed.x < 0) {
+        ball.position.x = width - paddleRight.width - ball.radius;
+        ball.position.y = paddleRight.position.y + paddleRight.height / 2;
+      } else {
+        ball.position.x = ball.radius + paddleLeft.width;
+        ball.position.y = paddleLeft.position.y + paddleLeft.height / 2;
       }
 
-      return { ball, paddleLeft, paddleRight, ballSpawn };
+      return { ball, paddleLeft, paddleRight };
     }
 
     // Déplace les éléments du jeu et gère les collisions
     function move(deltaTime: number) {
-
-      // Reverse the keys to work good
-      paddleRight.speed = 0;
-      if (keys.current["KeyW"]) paddleRight.speed -= speed;
-      if (keys.current["KeyS"]) paddleRight.speed += speed;
-
       paddleLeft.speed = 0;
-      if (keys.current["ArrowUp"]) paddleLeft.speed -= speed;
-      if (keys.current["ArrowDown"]) paddleLeft.speed += speed;
+      if (keys.current["KeyW"]) paddleLeft.speed += speed;
+      if (keys.current["KeyS"]) paddleLeft.speed -= speed;
+
+      paddleRight.speed = 0;
+      if (keys.current["ArrowUp"]) paddleRight.speed += speed;
+      if (keys.current["ArrowDown"]) paddleRight.speed -= speed;
 
 
       const paddleLeftPath = new Path(
@@ -277,31 +276,71 @@ const BabylonScene: React.FC = () => {
       ball.position.copy(ballPath.last().position);
       ball.speed.copy(ballPath.last().speed);
     }
+    
+    const { ball, paddleLeft, paddleRight } = initializeGameElements();
+    
+    // Offset positions to match the 3D scene
+    const ballOffset = new Vector3(-width / 2, 0.5, -height / 2);
+    const paddleOffset = new Vector3(-width / 2 + paddleLeft.width / 2, 0.5, -height / 2 + paddleLeft.height / 2);
+
+    // Position de l'emitter du fond
+    const fontEmitterPosition = new Vector3(0, -25, 0);
+    // Camera position and target
+    const cinematicPosition = new Vector3(0, -20, 0);
+    const cinematicTarget = new Vector3(0, -25, 0);
+    // vue de dessus (local)
+    const cameraPositionTop = new Vector3(0, 28, 0);
+    const cameraTargetTop = new Vector3(0, 0, 0);
+    const cameraRotationTop = new Vector3(Math.PI * 0.5, Math.PI, 0);
+    // // vue de côté (remote)
+    // const cameraPositionSide = new Vector3(width / 1.3, 15, 0);
+    // const cameraTargetSide = new Vector3(0, -5, 0);
+    // vue de face (watch)
+    // const cameraPositionFront = new Vector3(0, 20, 15);
+    // const cameraTargetFront = new Vector3(0, 0, 2);
 
     // Création de la scène Babylon.js
     function createScene() {
       // Initialisation de la scène
       const engine = new Engine(canvasRef.current, true);
       const scene = new Scene(engine);
-      scene.clearColor = new Color3(0, 0, 0).toColor4(); // Couleur de fond
+      scene.clearColor = new Color3(0.035, 0.02, 0.05).toColor4(); // Couleur de fond
 
       // Camera
-      const camera = new FreeCamera("camera1", new Vector3(0, 25, 0), scene);
-      camera.setTarget(new Vector3(0, 0, 0));
-      // const camera = new FreeCamera("camera1", new Vector3(0, 20, 15), scene);
-      // camera.setTarget(new Vector3(0, 0, 2));
-      // camera.attachControl(canvasRef.current, true); // Bouger la cam
+      const camera = new FreeCamera("camera", cinematicPosition, scene);
+      camera.setTarget(cinematicTarget);
+      camera.rotation = cameraRotationTop;
+
+      // Bouger la caméra
+      // camera.attachControl(canvasRef.current, true);
 
       // Lumière
-      new HemisphericLight("light", new Vector3(0, 1, 0), scene);
+      // new HemisphericLight("light", new Vector3(0, 1, 0), scene);
 
       // Glow layer
       const gl = new GlowLayer("glow", scene);
       gl.intensity = 2;
 
+      // Score
+      const score = new TextBlock();
+      score.fontSize = 72;
+      score.fontFamily = "Consolas";
+      score.color = "purple";
+      score.shadowColor = "indigo";
+      score.shadowOffsetX = 4;
+      score.shadowOffsetY = 4;
+      score.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      score.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+      score.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      score.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+      const guiTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+      guiTexture.addControl(score);
+
       // Bords
+      const boundColor = new Color3(0.2, 0.2, 0.2);
       const boundMat = new StandardMaterial("boundMat", scene);
-      boundMat.diffuseColor = new Color3(0, 0, 0);
+      boundMat.diffuseColor = boundColor;
+      boundMat.emissiveColor = boundColor;
 
       const boundUp = MeshBuilder.CreateBox("boundUp", {
         height: 0.2, width: width - 2, depth: 0.2
@@ -325,13 +364,13 @@ const BabylonScene: React.FC = () => {
         height: paddleLeft.width, width: 0.3, depth: paddleLeft.height
       }, scene);
       paddleLeft3D.material = paddleMat;
-      paddleLeft3D.position.set(-width / 2, 0.5, 0);
+      paddleLeft3D.position.copyFrom(new Vector3(paddleLeft.position.x, 0, paddleLeft.position.y).addInPlace(paddleOffset));
 
       const paddleRight3D = MeshBuilder.CreateBox("paddleRight3D", {
         height: paddleRight.width, width: 0.3, depth: paddleRight.height
       }, scene);
       paddleRight3D.material = paddleMat;
-      paddleRight3D.position.set(width / 2, 0.5, 0);
+      paddleRight3D.position.copyFrom(new Vector3(paddleRight.position.x, 0, paddleRight.position.y).addInPlace(paddleOffset));
 
       // Balle
       const ballColor = new Color3(0, 0.8, 0);
@@ -340,7 +379,8 @@ const BabylonScene: React.FC = () => {
       ballMat.diffuseColor = ballColor;
       ballMat.emissiveColor = ballColor;
       ball3D.material = ballMat;
-      ball3D.position.set(0, 0.5, 0);
+      // ball3D.position.copyFrom(new Vector3(ball.position.x, 0, ball.position.y).addInPlace(ballOffset));
+      ball3D.position.set(width, 0.5, height); // Out of view
 
       // urlTexture
       const urlTexture = "https://playground.babylonjs.com/textures/flare.png";
@@ -359,20 +399,38 @@ const BabylonScene: React.FC = () => {
       ballParticules.addSizeGradient(1, ball.radius * 2);
       ballParticules.start();
 
+      // Particules pour le font
+      const fontParticles = new ParticleSystem("fontParticles",5000, scene);
+      fontParticles.particleTexture = new Texture(urlTexture, scene);
+      fontParticles.emitter = fontEmitterPosition;
+      fontParticles.minEmitBox = new Vector3(0, 0, 0);
+      fontParticles.maxEmitBox = new Vector3(0, 0, 0);
+      fontParticles.minEmitPower = speed * 200;
+      fontParticles.maxEmitPower = speed * 500;
+      fontParticles.direction1 = new Vector3(-1, 1, -1);
+      fontParticles.direction2 = new Vector3(1, 1, 1);
+      fontParticles.color1 = paddleColor.toColor4(1);
+      fontParticles.minSize = 0.1;
+      fontParticles.maxSize = 0.1;
+      fontParticles.minLifeTime = 10;
+      fontParticles.maxLifeTime = 10;
+      fontParticles.emitRate = 500;
+      fontParticles.start();
+
       // Particules pour les collisions
-      const collisionParticles = new ParticleSystem("collisionParticles", 1000, scene);
+      const collisionParticles = new ParticleSystem("collisionParticles",3000, scene);
       collisionParticles.particleTexture = new Texture(urlTexture, scene);
       collisionParticles.emitter = ball3D;
       collisionParticles.minEmitBox = new Vector3(0, 0, 0);
       collisionParticles.maxEmitBox = new Vector3(0, 0, 0);
-      collisionParticles.minEmitPower = speed * 200;
-      collisionParticles.maxEmitPower = speed * 500;
-      collisionParticles.color1 = ballColor.toColor4(1);
-      collisionParticles.colorDead = ballColor.toColor4(0);
+      collisionParticles.minEmitPower = speed * 400;
+      collisionParticles.maxEmitPower = speed * 1000;
+      collisionParticles.color1 = ballColor.toColor4();
+      // collisionParticles.colorDead = new Color3(0, 0, 0).toColor4();
       collisionParticles.minSize = 0.1;
       collisionParticles.maxSize = 0.1;
-      collisionParticles.minLifeTime = speed * 100;
-      collisionParticles.maxLifeTime = speed * 200;
+      collisionParticles.minLifeTime = speed * 50;
+      collisionParticles.maxLifeTime = speed * 100;
       collisionParticles.manualEmitCount = 0;
       collisionParticles.disposeOnStop = false;
       collisionParticles.start();
@@ -380,29 +438,58 @@ const BabylonScene: React.FC = () => {
       return {
         engine,
         scene,
+        camera,
+        score,
         ball3D,
         paddleLeft3D,
         paddleRight3D,
+        fontParticles,
         collisionParticles
       };
     }
 
-    const { ball, paddleLeft, paddleRight, ballSpawn } = initializeGameElements();
+    const { engine, scene, camera, score, ball3D, paddleLeft3D, paddleRight3D, fontParticles, collisionParticles } = createScene();
 
-    const { engine, scene, ball3D, paddleLeft3D, paddleRight3D, collisionParticles } = createScene();
-
-    function triggerCollisionEffect(direction1: Vector3) {
+    function triggerCollisionEffect(direction: Vector3) {
       collisionParticles.direction1 = new Vector3(-1, 1, -1);
       collisionParticles.direction2 = new Vector3(1, -1, 1);
-      collisionParticles.direction1.addInPlace(direction1.clone());
-      collisionParticles.direction2.addInPlace(direction1.clone());
-      collisionParticles.manualEmitCount = 300; // nombre de particules par collision
+      collisionParticles.direction1.addInPlace(direction);
+      collisionParticles.direction2.addInPlace(direction);
+      collisionParticles.manualEmitCount = 100; // nombre de particules par collision
       collisionParticles.start();
     }
+
+    let cinematicEndUp = false;
+    let cinematicDuration = 3000; // Durée de la cinématique en ms
+
+    let gameStarted = false;
+    let gameStartTime = 2000;
+    
 
     scene.onBeforeRenderObservable.add(() => {
       const deltaTime = engine.getDeltaTime(); // en millisecondes
 
+      // Cinematic
+      if (!cinematicEndUp) {
+        cinematicDuration -= deltaTime;
+        camera.position.copyFrom(Vector3.Lerp(camera.position, cameraPositionTop, deltaTime / cinematicDuration));
+        camera.setTarget(Vector3.Lerp(camera.getTarget(), cameraTargetTop, deltaTime / cinematicDuration));
+        if (cinematicDuration <= 0) {
+          cinematicEndUp = true;
+          fontParticles.color1 = new Color3(0, 0, 0).toColor4();
+          fontParticles.color2 = new Color3(0, 0, 0).toColor4();
+          fontParticles.colorDead = new Color3(0.7, 0, 1).toColor4();
+        }
+        return;
+      } else if (!gameStarted) { //! must add a count from 3 to 0
+        gameStartTime -= deltaTime;
+        if (gameStartTime <= 0) {
+          gameStarted = true;
+          // camera.rotation = cameraRotationTop; // reset camera rotation
+          ball3D.position.copyFrom(new Vector3(ball.position.x, 0, ball.position.y).addInPlace(ballOffset));
+        }
+        return;
+      }
       // Update positions with collisions
       const tmpBallSpeed = ball.speed.clone();
       move(deltaTime);
@@ -411,25 +498,27 @@ const BabylonScene: React.FC = () => {
       if (Math.sign(tmpBallSpeed.x) != Math.sign(ball.speed.x) || Math.sign(tmpBallSpeed.y) != Math.sign(ball.speed.y))
         triggerCollisionEffect(new Vector3(tmpBallSpeed.x * 100, 0, tmpBallSpeed.y * 100));
 
-      // reset ball if out of bounds || In Back-Side ?
-      if (ball.position.x - ball.radius < 0 || ball.position.x + ball.radius > width) {
-        if (ball.position.x - ball.radius < 0)
+      // reset ball (at winner's paddle) if out of bounds || In Back-Side ?
+      if (ball.position.x - ball.radius < -width / 2 || ball.position.x + ball.radius > width * 1.5) {
+        if (ball.position.x - ball.radius < 0) {
           RightScore++;
-        else
+          ball.position.x = width - paddleRight.width - ball.radius;
+          ball.position.y = paddleRight.position.y + paddleRight.height / 2;
+        } else {
           LeftScore++;
-        ball.position.x = width / 2, ball.position.y = ballSpawn[Math.floor(Math.random() * (ballSpawn.length))];
+          ball.position.x = ball.radius + paddleLeft.width;
+          ball.position.y = paddleLeft.position.y + paddleLeft.height / 2;
+        }
         defineBallVectors(ball);
       }
 
-      // Offset posiions to match the 3D scene
-      ball3D.position = new Vector3(-width / 2, 0.5, -height / 2);
-      paddleLeft3D.position = new Vector3(-width / 2 + paddleLeft.width / 2, 0.5, -height / 2 + paddleLeft.height / 2);
-      paddleRight3D.position = new Vector3(-width / 2 + paddleRight.width / 2, 0.5, -height / 2 + paddleRight.height / 2);
+      // Update text score
+      // score.text = `${LeftScore}   ${RightScore}`;
 
       // Update positions
-      ball3D.position.addInPlace(new Vector3(ball.position.x, 0, ball.position.y));
-      paddleLeft3D.position.addInPlace(new Vector3(paddleLeft.position.x, 0, paddleLeft.position.y));
-      paddleRight3D.position.addInPlace(new Vector3(paddleRight.position.x, 0, paddleRight.position.y));
+      ball3D.position.copyFrom(new Vector3(ball.position.x, 0, ball.position.y).addInPlace(ballOffset));
+      paddleLeft3D.position.copyFrom(new Vector3(paddleLeft.position.x, 0, paddleLeft.position.y).addInPlace(paddleOffset));
+      paddleRight3D.position.copyFrom(new Vector3(paddleRight.position.x, 0, paddleRight.position.y).addInPlace(paddleOffset));
     });
 
     engine.runRenderLoop(() => {
@@ -451,4 +540,4 @@ const BabylonScene: React.FC = () => {
   return <canvas ref={canvasRef} style={{ width: "100%", height: "100vh" }} />;
 };
 
-export default BabylonScene;
+export default PongScene;
