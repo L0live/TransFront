@@ -7,7 +7,7 @@ import { Engine, Scene,
 } from "@babylonjs/core";
 import Victor from "victor";
 import Path from "./usePath";
-import { AdvancedDynamicTexture, TextBlock, Control } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Button, TextBlock, Control } from "@babylonjs/gui";
 
 const PongScene: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -291,7 +291,7 @@ const PongScene: React.FC = () => {
     // vue de dessus (local)
     const cameraPositionTop = new Vector3(0, 28, 0);
     const cameraTargetTop = new Vector3(0, 0, 0);
-    const cameraRotationTop = new Vector3(Math.PI * 0.5, Math.PI, 0);
+    const cameraRotationTop = new Vector3(Math.PI * 2, Math.PI * 2, 0);
     // // vue de côté (remote)
     // const cameraPositionSide = new Vector3(width / 1.3, 15, 0);
     // const cameraTargetSide = new Vector3(0, -5, 0);
@@ -322,19 +322,19 @@ const PongScene: React.FC = () => {
       gl.intensity = 2;
 
       // Score
-      const score = new TextBlock();
-      score.fontSize = 72;
-      score.fontFamily = "Consolas";
-      score.color = "purple";
-      score.shadowColor = "indigo";
-      score.shadowOffsetX = 4;
-      score.shadowOffsetY = 4;
-      score.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-      score.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-      score.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-      score.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-      const guiTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
-      guiTexture.addControl(score);
+      // const score = new TextBlock("score");
+      // score.fontSize = 72;
+      // score.fontFamily = "Consolas";
+      // score.color = "purple";
+      // score.shadowColor = "indigo";
+      // score.shadowOffsetX = 4;
+      // score.shadowOffsetY = 4;
+      // score.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      // score.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+      // score.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      // score.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+      // const guiTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+      // guiTexture.addControl(score);
 
       // Bords
       const boundColor = new Color3(0.2, 0.2, 0.2);
@@ -410,11 +410,13 @@ const PongScene: React.FC = () => {
       fontParticles.direction1 = new Vector3(-1, 1, -1);
       fontParticles.direction2 = new Vector3(1, 1, 1);
       fontParticles.color1 = paddleColor.toColor4(1);
-      fontParticles.minSize = 0.1;
-      fontParticles.maxSize = 0.1;
+      fontParticles.addColorGradient(0, Color3.Black().toColor4());
+      fontParticles.addColorGradient(0.2, new Color3(0.7, 0, 1).toColor4(), Color3.White().toColor4());
+      fontParticles.minSize = 0.03;
+      fontParticles.maxSize = 0.03;
       fontParticles.minLifeTime = 10;
       fontParticles.maxLifeTime = 10;
-      fontParticles.emitRate = 500;
+      fontParticles.emitRate = 300;
       fontParticles.start();
 
       // Particules pour les collisions
@@ -439,7 +441,6 @@ const PongScene: React.FC = () => {
         engine,
         scene,
         camera,
-        score,
         ball3D,
         paddleLeft3D,
         paddleRight3D,
@@ -448,7 +449,7 @@ const PongScene: React.FC = () => {
       };
     }
 
-    const { engine, scene, camera, score, ball3D, paddleLeft3D, paddleRight3D, fontParticles, collisionParticles } = createScene();
+    const { engine, scene, camera, ball3D, paddleLeft3D, paddleRight3D, fontParticles, collisionParticles } = createScene();
 
     function triggerCollisionEffect(direction: Vector3) {
       collisionParticles.direction1 = new Vector3(-1, 1, -1);
@@ -460,28 +461,65 @@ const PongScene: React.FC = () => {
     }
 
     let cinematicEndUp = false;
-    let cinematicDuration = 3000; // Durée de la cinématique en ms
+    let cinematicElapsedTime = 0;
+    const cinematicDuration = 3000; // Durée de la cinématique en ms
+
+    const initFontParticlesMinSize = fontParticles.minSize;
+    const initFontParticlesMaxSize = fontParticles.maxSize;
 
     let gameStarted = false;
     let gameStartTime = 2000;
-    
+
+    const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    // input bar for pseudo
+    const inputPseudo = new TextBlock("inputPseudo", "Enter your pseudo");
+    inputPseudo.fontSize = 24;
+    inputPseudo.color = "white";
+    // inputPseudo.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    // inputPseudo.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    // inputPseudo.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    // inputPseudo.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    inputPseudo.top = "-50px";
+    // inputPseudo.left = "50%";
+    inputPseudo.width = "300px";
+    inputPseudo.height = "40px";
+    // inputPseudo.background = "black";
+    inputPseudo.onPointerUpObservable.add(() => {
+      inputPseudo.text = ""; // Clear the text when clicked
+      // inputPseudo.isFocused = true; // Focus the input
+    });
+    advancedTexture.addControl(inputPseudo);
+    const buttonPlay = Button.CreateSimpleButton("buttonPlay", "PLAY");
+    buttonPlay.width = "150px";
+    buttonPlay.height = "40px";
+    buttonPlay.color = "white";
+    buttonPlay.background = "black";
+    buttonPlay.onPointerUpObservable.add(() => {
+      buttonPlay.isVisible = false; // Hide the button
+    });
+    advancedTexture.addControl(buttonPlay);
 
     scene.onBeforeRenderObservable.add(() => {
       const deltaTime = engine.getDeltaTime(); // en millisecondes
 
       // Cinematic
+      if (buttonPlay.isVisible)
+        return; // If the button is visible, skip all
       if (!cinematicEndUp) {
-        cinematicDuration -= deltaTime;
-        camera.position.copyFrom(Vector3.Lerp(camera.position, cameraPositionTop, deltaTime / cinematicDuration));
-        camera.setTarget(Vector3.Lerp(camera.getTarget(), cameraTargetTop, deltaTime / cinematicDuration));
-        if (cinematicDuration <= 0) {
+        cinematicElapsedTime += deltaTime;
+        const t = Math.min(cinematicElapsedTime / cinematicDuration, 1); // progression de 0 à 1
+        camera.position.copyFrom(Vector3.Lerp(camera.position, cameraPositionTop, t / 20));
+        camera.setTarget(Vector3.Lerp(camera.getTarget(), cameraTargetTop, t / 20));
+        fontParticles.minSize = initFontParticlesMinSize + t * 0.1;
+        fontParticles.maxSize = initFontParticlesMaxSize + t * 0.1;
+        if (cinematicElapsedTime >= cinematicDuration) {
           cinematicEndUp = true;
-          fontParticles.color1 = new Color3(0, 0, 0).toColor4();
-          fontParticles.color2 = new Color3(0, 0, 0).toColor4();
-          fontParticles.colorDead = new Color3(0.7, 0, 1).toColor4();
+          // fontParticles.color1 = new Color3(0, 0, 0).toColor4();
+          // fontParticles.color2 = new Color3(0, 0, 0).toColor4();
+          // fontParticles.colorDead = new Color3(0.7, 0, 1).toColor4();
         }
         return;
-      } else if (!gameStarted) { //! must add a count from 3 to 0
+      } else if (!gameStarted) { //! must add a gui count from 3 to 0
         gameStartTime -= deltaTime;
         if (gameStartTime <= 0) {
           gameStarted = true;
@@ -537,7 +575,7 @@ const PongScene: React.FC = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100vh" }} />;
+  return <canvas ref={canvasRef}  tabIndex={1} style={{ width: "100%", height: "100vh" }} />;
 };
 
 export default PongScene;

@@ -1,8 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 
 export default function BlackPongApp() {
   const [page, setPage] = useState<"home" | "select">("home");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = () => {
+    const val = inputRef.current?.value;
+    console.log("Saisie :", val);
+
+    fetch('http://localhost:3000/')
+    .then(response => response.json())
+    .then(data => console.log(data))
+    .catch(error => console.error('Error fetching data:', error));
+  };
 
   if (page === "home") {
     return (
@@ -13,6 +24,7 @@ export default function BlackPongApp() {
         <div className="flex flex-col items-center">
           <br />
           <input
+            ref={inputRef}
             type="text"
             className="border rounded px-5 py-1 mt-2"
             placeholder="Pseudo..."
@@ -20,7 +32,10 @@ export default function BlackPongApp() {
           <br />
           <button
             className="mt-4 px-6 py-2 bg-[#646cff] text-white rounded hover:bg-[#535bf2]"
-            onClick={() => setPage("select")}
+            onClick={() => {
+              handleSubmit();
+              setPage("select");
+            }}
           >
             Play
           </button>
