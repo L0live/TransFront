@@ -1,7 +1,7 @@
 // usePath.tsx
 import Victor from "victor";
 
-class Path {
+export default class Path {
   next: Path | null = null;
   position: Victor;
   speed: Victor;
@@ -61,5 +61,3 @@ class Path {
     }
   }
 }
-
-export default Path;

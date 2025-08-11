@@ -1,4 +1,3 @@
-import React, { useEffect, useRef } from "react";
 import { Engine, Scene,
   FreeCamera, HemisphericLight,
   Vector3, Color3, GlowLayer,
@@ -7,23 +6,37 @@ import { Engine, Scene,
 } from "@babylonjs/core";
 import Victor from "victor";
 import Path from "./usePath";
-import { AdvancedDynamicTexture, Button, TextBlock, Control } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Button, InputText, TextBlock } from "@babylonjs/gui";
 
-const PongScene: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const keys = useRef<Record<string, boolean>>({});
+export default function PongScene(): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'flex justify-center items-center h-screen bg-gray-900';
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'fixed top-0 left-0 w-full h-full';
+  const resizeCanvas = () => {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = "100vw";
+    canvas.style.height = "100vh";
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+  };
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
+  container.appendChild(canvas);
+
+  const keys: Record<string, boolean> = {};
+
+  function init() {
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      keys.current[e.code] = true;
+      keys[e.code] = true;
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      keys.current[e.code] = false;
+      keys[e.code] = false;
     };
     const handleBlur = () => {
-      keys.current = {};
+      Object.keys(keys).forEach(key => keys[key] = false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -101,13 +114,12 @@ const PongScene: React.FC = () => {
     // Déplace les éléments du jeu et gère les collisions
     function move(deltaTime: number) {
       paddleLeft.speed = 0;
-      if (keys.current["KeyW"]) paddleLeft.speed += speed;
-      if (keys.current["KeyS"]) paddleLeft.speed -= speed;
+      if (keys["KeyW"]) paddleLeft.speed += speed;
+      if (keys["KeyS"]) paddleLeft.speed -= speed;
 
       paddleRight.speed = 0;
-      if (keys.current["ArrowUp"]) paddleRight.speed += speed;
-      if (keys.current["ArrowDown"]) paddleRight.speed -= speed;
-
+      if (keys["ArrowUp"]) paddleRight.speed += speed;
+      if (keys["ArrowDown"]) paddleRight.speed -= speed;
 
       const paddleLeftPath = new Path(
         paddleLeft.position.clone(),
@@ -302,7 +314,7 @@ const PongScene: React.FC = () => {
     // Création de la scène Babylon.js
     function createScene() {
       // Initialisation de la scène
-      const engine = new Engine(canvasRef.current, true);
+      const engine = new Engine(canvas, true, {adaptToDeviceRatio: true});
       const scene = new Scene(engine);
       scene.clearColor = new Color3(0.035, 0.02, 0.05).toColor4(); // Couleur de fond
 
@@ -312,7 +324,7 @@ const PongScene: React.FC = () => {
       camera.rotation = cameraRotationTop;
 
       // Bouger la caméra
-      // camera.attachControl(canvasRef.current, true);
+      // camera.attachControl(canvasRef, true);
 
       // Lumière
       // new HemisphericLight("light", new Vector3(0, 1, 0), scene);
@@ -470,34 +482,49 @@ const PongScene: React.FC = () => {
     let gameStarted = false;
     let gameStartTime = 2000;
 
-    const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    // input bar for pseudo
-    const inputPseudo = new TextBlock("inputPseudo", "Enter your pseudo");
-    inputPseudo.fontSize = 24;
-    inputPseudo.color = "white";
-    // inputPseudo.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    // inputPseudo.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    // inputPseudo.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    // inputPseudo.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    inputPseudo.top = "-50px";
-    // inputPseudo.left = "50%";
-    inputPseudo.width = "300px";
-    inputPseudo.height = "40px";
-    // inputPseudo.background = "black";
-    inputPseudo.onPointerUpObservable.add(() => {
-      inputPseudo.text = ""; // Clear the text when clicked
-      // inputPseudo.isFocused = true; // Focus the input
-    });
-    advancedTexture.addControl(inputPseudo);
-    const buttonPlay = Button.CreateSimpleButton("buttonPlay", "PLAY");
-    buttonPlay.width = "150px";
-    buttonPlay.height = "40px";
-    buttonPlay.color = "white";
+   
+    // GUI
+    const ui = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    // ui.idealWidth = 2560;
+    // ui.idealHeight = 1440;
+    // ui.useSmallestIdeal = true;
+    // ui.renderAtIdealSize = true;
+
+    
+    // nickname input
+    let nickname = "Player";
+    const inputNickname = new InputText("nicknameInput")
+    inputNickname.width = "150px";
+    inputNickname.height = "30px";
+    inputNickname.placeholderText = nickname + "...";
+    inputNickname.thickness = 1;
+    inputNickname.color = "grey";
+    inputNickname.background = "black";
+    ui.addControl(inputNickname);
+
+    // Play Button for nickname input
+    const buttonPlay = Button.CreateSimpleButton("playButton", "PLAY");
+    buttonPlay.top = "50px";
+    buttonPlay.width = "120px";
+    buttonPlay.height = "30px";
+    buttonPlay.color = "grey";
+    buttonPlay.cornerRadius = 15;
+    buttonPlay.thickness = 1;
     buttonPlay.background = "black";
-    buttonPlay.onPointerUpObservable.add(() => {
+    buttonPlay.onPointerEnterObservable.add(() => {
+      buttonPlay.color = "white"; // Change color on hover
+    });
+    buttonPlay.onPointerOutObservable.add(() => {
+      buttonPlay.color = "grey"; // Change color back on hover out
+    });
+    buttonPlay.onPointerClickObservable.add(() => {
+      // get Input nickname
+      nickname = inputNickname.text || nickname;
+      console.log("nickname: ", nickname);
+      inputNickname.isVisible = false; // Hide the input
       buttonPlay.isVisible = false; // Hide the button
     });
-    advancedTexture.addControl(buttonPlay);
+    ui.addControl(buttonPlay);
 
     scene.onBeforeRenderObservable.add(() => {
       const deltaTime = engine.getDeltaTime(); // en millisecondes
@@ -565,17 +592,15 @@ const PongScene: React.FC = () => {
 
     const resize = () => engine.resize();
     window.addEventListener("resize", resize);
-
-    return () => {
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur);
-      engine.dispose();
+    
+    const cleanup = () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
-  }, []);
+  }
 
-  return <canvas ref={canvasRef}  tabIndex={1} style={{ width: "100%", height: "100vh" }} />;
+  init();
+  return container;
 };
-
-export default PongScene;

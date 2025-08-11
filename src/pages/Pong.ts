@@ -1,14 +1,18 @@
-// Pong.tsx
-import { useRef, useEffect } from "react";
+// Pong.ts
 import Victor from "victor";
 import Path from "./usePath";
 
-export default function GameCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const keys = useRef<Record<string, boolean>>({});
+export default function GameCanvas(): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'flex justify-center items-center h-screen bg-gray-900';
 
-  useEffect(() => {
-    const canvas = canvasRef.current!;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'block fixed top-0 left-0 w-full h-full';
+  container.appendChild(canvas);
+
+  const keys: Record<string, boolean> = {};
+
+  function init() {
     const ctx = canvas.getContext("2d")!;
 
     const resizeCanvas = () => {
@@ -22,13 +26,13 @@ export default function GameCanvas() {
     window.addEventListener("resize", resizeCanvas);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      keys.current[e.code] = true;
+      keys[e.code] = true;
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      keys.current[e.code] = false;
+      keys[e.code] = false;
     };
     const handleBlur = () => {
-      keys.current = {};
+      Object.keys(keys).forEach(key => keys[key] = false);
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -278,12 +282,12 @@ export default function GameCanvas() {
 
     function move(deltaTime: number) {
       paddleLeft.speed = 0;
-      if (keys.current["KeyW"]) paddleLeft.speed -= speed;
-      if (keys.current["KeyS"]) paddleLeft.speed += speed;
+      if (keys["KeyW"]) paddleLeft.speed -= speed;
+      if (keys["KeyS"]) paddleLeft.speed += speed;
 
       paddleRight.speed = 0;
-      if (keys.current["ArrowUp"]) paddleRight.speed -= speed;
-      if (keys.current["ArrowDown"]) paddleRight.speed += speed;
+      if (keys["ArrowUp"]) paddleRight.speed -= speed;
+      if (keys["ArrowDown"]) paddleRight.speed += speed;
 
 
       const paddleLeftPath = new Path(
@@ -341,21 +345,17 @@ export default function GameCanvas() {
 
     defineBallVectors();
     requestAnimationFrame(update);
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
 
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur);
+    const cleanup = () => {
+      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
-  }, []);
 
-  return (
-    <div className="flex justify-center items-center h-screen bg-gray-900">
-      <canvas
-        ref={canvasRef}
-        className="block fixed top-0 left-0 w-full h-full"
-      />
-    </div>
-  );
+    cleanup();
+  }
+
+  init();
+  return container;
 }
