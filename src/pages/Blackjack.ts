@@ -34,8 +34,6 @@ export default function BlackjackScene(): HTMLElement {
 
   function init() {
 
-    // let multiCoinStruct: AbstractMesh[][] = [];
-
     function createScene() {
       const engine = new Engine(canvas, true, { adaptToDeviceRatio: true });
       const scene = new Scene(engine);
@@ -91,7 +89,6 @@ export default function BlackjackScene(): HTMLElement {
         const place: Place = {
           name: name,
           placeMesh: MeshBuilder.CreateSphere(name, { diameter: 0.02 }, scene),
-          // coinMesh: MeshBuilder.CreateSphere(name + "Coin", { diameter: 0.03 }, scene),
           coinMesh: positionRatio ? null : MeshBuilder.CreateDisc(name + "Coin", { radius: 0.06, tessellation: 32 }, scene),
           direction: direction,
           positonCards: positionRatio ? direction.scale(positionRatio) : direction.scale(placeCards), // Position for cards
@@ -104,9 +101,7 @@ export default function BlackjackScene(): HTMLElement {
         if (place.coinMesh) {
           place.coinMesh.position = place.positionCoins;
           place.coinMesh.rotation.x = Math.PI / 2; // Rotate coin mesh to lie flat
-          // console.log("Place: ", place.name, "PositionCards: ", place.positonCards, "PositionCoins: ", place.positionCoins);
           place.coinMesh.material = MatWhite;
-          // place.coinMesh.on
           place.coinMesh.isVisible = false; // Initially hidden
         }
         placesTab.push(place);
@@ -131,8 +126,6 @@ export default function BlackjackScene(): HTMLElement {
       fontParticles.maxEmitBox = new Vector3(0, 0, 0);
       fontParticles.minEmitPower = 10;
       fontParticles.maxEmitPower = 10;
-      // fontParticles.direction1 = new Vector3(-0.5, 0, 1);
-      // fontParticles.direction2 = new Vector3(0.5, 1, 1);
       fontParticles.direction1 = new Vector3(1, 1, 1);
       fontParticles.direction2 = new Vector3(-1, -1, -1);
       fontParticles.color1 = fontParticulesColor;
@@ -148,41 +141,53 @@ export default function BlackjackScene(): HTMLElement {
 
       // Add Blackjack Table from a .glb file
       const assetsManager = new AssetsManager(scene);
+      
+      // MatCoinTab
+      const MatCoinTab: StandardMaterial[] = [];
 
-      function createCoinMesh(name: string, position: Vector3): AbstractMesh[] {
-        const taskCoin = assetsManager.addContainerTask("loadGLB", "", "models/", `${name}.glb`);
+      function createCoinMaterials(textureName: string): StandardMaterial {
+        const MatCoinTexture = new Texture(`assets/${textureName}.png`, scene);
+        MatCoinTexture.uOffset = 0.04; // Adjust texture offset for better alignment
+        const MatCoin = new StandardMaterial(`MatCoin${textureName}`, scene);
+        MatCoin.hasTexture(MatCoinTexture);
+        MatCoin.diffuseTexture = MatCoinTexture;
+        MatCoin.emissiveTexture = MatCoinTexture;
+        return MatCoin;
+      }
+
+      MatCoinTab.push(createCoinMaterials("5"));
+      MatCoinTab.push(createCoinMaterials("10"));
+      MatCoinTab.push(createCoinMaterials("20"));
+      MatCoinTab.push(createCoinMaterials("50"));
+      MatCoinTab.push(createCoinMaterials("100"));
+
+      function createCoinMesh(
+        material: StandardMaterial,
+        position: Vector3,
+        onReady?: (meshes: AbstractMesh[]) => void
+      ): AbstractMesh[] {
+        const taskCoin = assetsManager.addContainerTask("loadGLB", "", "models/", "Coin5.glb");
 
         let coinMeshes: AbstractMesh[] = [];
 
         taskCoin.onSuccess = (taskCoin) => {
           taskCoin.loadedContainer.addAllToScene();
           coinMeshes = taskCoin.loadedContainer.meshes;
+          coinMeshes.forEach(mesh => mesh.material = material);
 
-          // Container elements: __root__, Cylindre_primitive0, Cylindre_primitive1
-          if (coinMeshes[0]) {
-            coinMeshes[0].scaling = new Vector3(0.03, 0.03, 0.03); // Adjust size
-            coinMeshes[0].position = position; // Set position
-            coinMeshes[0].rotation = new Vector3(0, 0, Math.PI); // Rotate to lie flat
+          coinMeshes[0].scaling = new Vector3(0.03, 0.03, 0.03);
+          coinMeshes[0].position = position;
+          coinMeshes[0].rotation = new Vector3(0, 0, Math.PI);
 
-          } else {
-            console.warn(`${name} mesh not found in the loaded GLB file.`);
-            return;
-          }
-        }
+          if (onReady) onReady(coinMeshes);
+        };
 
         taskCoin.onError = (taskCoin, message, exception) => {
-            console.error(`Erreur de chargement des pièces de ${name} :`, message, exception);
+          console.error(`Erreur de chargement des pièces :`, message, exception);
         };
 
         return coinMeshes;
       }
-
-      // Create coin meshes for each denomination
-      // const coinNames = ["Coin5", "Coin10", "Coin25", "Coin50", "Coin100"];
-      // const coinNames = ["Coin5"];
-      // for (let i = 0; i < coinNames.length; i++) {
-      //   multiCoinStruct.push(createCoinMesh(coinNames[i], new Vector3(0, 1, 1.25)));
-      // }
 
       const taskTable = assetsManager.addContainerTask("loadGLB", "", "models/", "floatingBlackjackTable.glb");
 
@@ -216,8 +221,6 @@ export default function BlackjackScene(): HTMLElement {
       taskTable.onError = (taskTable, message, exception) => {
           console.error("Erreur de chargement :", message, exception);
       };
-
-      assetsManager.load();
 
       // Particules pour les reacteurs
       function createReactor(position: Vector3, name: string) {
@@ -265,13 +268,14 @@ export default function BlackjackScene(): HTMLElement {
         placesTab,
         fontParticles,
         assetsManager,
+        MatCoinTab,
         createCoinMesh,
         reactorLeft, rpLeft,
         reactorRight, rpRight,
       }
     }
 
-    const { engine, scene, camera, placesTab, fontParticles, assetsManager, createCoinMesh, reactorLeft, rpLeft, reactorRight, rpRight } = createScene();
+    const { engine, scene, camera, placesTab, fontParticles, assetsManager, MatCoinTab, createCoinMesh, reactorLeft, rpLeft, reactorRight, rpRight } = createScene();
 
     function createGUI() {
       // GUI
@@ -556,7 +560,7 @@ export default function BlackjackScene(): HTMLElement {
 
       coinsButtonTab.push(createCoinButton(5, "green", new Vector2(-110, -140)));
       coinsButtonTab.push(createCoinButton(10, "blue", new Vector2(-65, -190)));
-      coinsButtonTab.push(createCoinButton(25, "yellow", new Vector2(0, -205)));
+      coinsButtonTab.push(createCoinButton(20, "yellow", new Vector2(0, -205)));
       coinsButtonTab.push(createCoinButton(50, "orange", new Vector2(65, -190)));
       coinsButtonTab.push(createCoinButton(100, "red", new Vector2(110, -140)));
 
@@ -566,10 +570,13 @@ export default function BlackjackScene(): HTMLElement {
         buttonCleanBet: Button | null;
         textBet: TextBlock | null;
         bet: number;
-        currentCoin: AbstractMesh[] | null;
-        // originalCoin: AbstractMesh | null;
-        coin3DFinalPosition: Vector3;
+        currentCoin: AbstractMesh[];
       }
+
+      // transparent Mat
+      const MatCoinTransparent = new StandardMaterial("MatCoinTransparent", scene);
+      MatCoinTransparent.diffuseColor = Color3.White();
+      MatCoinTransparent.alpha = 0;
 
       const selectableAreas: SelectableArea[] = [];
 
@@ -577,7 +584,7 @@ export default function BlackjackScene(): HTMLElement {
         const selectBox = new Rectangle("selectBox");
         selectBox.left = position.x;
         selectBox.top = position.y;
-        selectBox.width = "120px";
+        selectBox.width = "130px";
         selectBox.height = "120px";
         selectBox.thickness = 0;
         selectBox.background = "transparent";
@@ -589,10 +596,11 @@ export default function BlackjackScene(): HTMLElement {
           buttonCleanBet: null,
           textBet: null,
           bet: 0,
-          currentCoin: null,
-          // originalCoin: multiCoinStruct[0] ? multiCoinStruct[0][0] : null, // Use the first coin as the original coin, only temporary
-          coin3DFinalPosition: placesTab[index].positionCoins
+          currentCoin: []
         };
+        selectableArea.currentCoin = createCoinMesh(MatCoinTransparent, placesTab[index].positionCoins, (meshes) => {
+          selectableArea.currentCoin = meshes;
+        });
         // Create a button to clean the bet for this place
         const buttonCleanBetPlace = Button.CreateSimpleButton(`cleanBetPlace${index}`, "❌​​");
         buttonCleanBetPlace.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -612,14 +620,7 @@ export default function BlackjackScene(): HTMLElement {
           buttonCleanBetPlace.background = "transparent"; // Change background back on hover out
         });
         buttonCleanBetPlace.onPointerClickObservable.add(() => {
-          // Clean bet for this place
-          if (selectableArea.currentCoin) { // POUR LE CLONE
-            selectableArea.currentCoin.forEach(coin => {
-              coin.isVisible = false;
-              coin.dispose(); // Dispose the coin mesh
-            }); // Hide the coin mesh
-            selectableArea.currentCoin = null;
-          }
+          selectableArea.currentCoin.forEach(coin => coin.material = MatCoinTransparent); // Hide the coin mesh
           totalBetAmount -= selectableArea.bet; // Subtract bet amount from total bet
           labelTotalBet.text = `Total Bet: ${totalBetAmount} €`;
           selectableArea.bet = 0; // Reset bet amount for this area
@@ -630,7 +631,7 @@ export default function BlackjackScene(): HTMLElement {
         // Bet Text block
         const textBet = new TextBlock(`textBetPlace${index}`, selectableArea.bet.toString());
         textBet.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
-        textBet.top = -10;
+        textBet.top = -50;
         textBet.color = "white";
         textBet.fontSize = 16;
         textBet.isVisible = false; // Initially hidden
@@ -638,39 +639,41 @@ export default function BlackjackScene(): HTMLElement {
         selectableArea.selectBox.addControl(textBet);
         selectableArea.selectBox.addControl(buttonCleanBetPlace);
         selectBox.onPointerClickObservable.add(() => {
+          let currentValue = 0;
           coinsButtonTab.forEach(coin => {
-            if (coin.isActive) {
-              if (totalBetAmount + coin.value > bankAmount) {
-                return;
-              }
-              if (!selectableArea.currentCoin) {
-                // selectableArea.currentCoin = createCoinMesh(`Coin${coin.value}`, selectableArea.coin3DFinalPosition);
-                selectableArea.currentCoin = createCoinMesh("Coin5", selectableArea.coin3DFinalPosition);
-                assetsManager.load(); // Load the coin mesh
-              }
-              if (selectableArea.bet == 0) {
-                selectableArea.buttonCleanBet!.isVisible = true; // Show the clean bet button
-                selectableArea.textBet!.isVisible = true; // Show the bet text
-              }
-              selectableArea.bet += coin.value; // Add bet amount
-              selectableArea.textBet!.text = selectableArea.bet.toString(); // Update bet text
-              // Add bet to total bet amount
-              totalBetAmount += coin.value;
-              labelTotalBet.text = `Total Bet: ${totalBetAmount} €`;
-              return;
-            }
+            if (coin.isActive)
+              currentValue = coin.value; // Get the value of the selected coin
           });
+          if (currentValue === 0)
+            return;
+          if (totalBetAmount + currentValue > bankAmount)
+            return;
+          if (selectableArea.bet == 0) {
+            selectableArea.buttonCleanBet!.isVisible = true; // Show the clean bet button
+            selectableArea.textBet!.isVisible = true; // Show the bet text
+          }
+          selectableArea.bet += currentValue; // Add bet amount
+          let matIndex = 0;
+          if (selectableArea.bet >= 100) matIndex = 4;
+          else if (selectableArea.bet >= 50) matIndex = 3;
+          else if (selectableArea.bet >= 20) matIndex = 2;
+          else if (selectableArea.bet >= 10) matIndex = 1;
+          selectableArea.currentCoin.forEach(coin => coin.material = MatCoinTab[matIndex]);
+          selectableArea.textBet!.text = selectableArea.bet.toString(); // Update bet text
+          // Add bet to total bet amount
+          totalBetAmount += currentValue;
+          labelTotalBet.text = `Total Bet: ${totalBetAmount} €`;
+          return;
         });
         ui.addControl(selectableArea.selectBox);
-
         return selectableArea;
       }
 
-      // selectableAreas.push(createSelectableArea(new Vector2(0, 0), 0));
-      // selectableAreas.push(createSelectableArea(new Vector2(0, 0), 1));
-      selectableAreas.push(createSelectableArea(new Vector2(0, 150), 2));
-      // selectableAreas.push(createSelectableArea(new Vector2(0, 0), 3));
-      // selectableAreas.push(createSelectableArea(new Vector2(0, 0), 4));
+      selectableAreas.push(createSelectableArea(new Vector2(-837, -210), 0));
+      selectableAreas.push(createSelectableArea(new Vector2(-560, 70), 1));
+      selectableAreas.push(createSelectableArea(new Vector2(0, 185), 2));
+      selectableAreas.push(createSelectableArea(new Vector2(560, 70), 3));
+      selectableAreas.push(createSelectableArea(new Vector2(837, -210), 4));
 
       // Bet Button
       const buttonBet = Button.CreateSimpleButton("betButton", "BET");
@@ -712,10 +715,14 @@ export default function BlackjackScene(): HTMLElement {
     }
 
     const {buttonPlay, labelBank, labelTotalBet, buttonHelp, buttonQuit, buttonVolume, buttonBet, coinsButtonTab, selectableAreas } = createGUI();
+    // Start loading all previously registered asset tasks (table + any coin tasks added by createSelectableArea)
+    // This must be called after createGUI so that createCoinMesh tasks are registered on assetsManager before loading.
+    assetsManager.load();
 
     let cinematicEndUp = false;
     let cinematicElapsedTime = 0;
-    const cinematicDuration = 3000; // Durée de la cinématique en ms
+    // const cinematicDuration = 3000; // Durée de la cinématique en ms
+    const cinematicDuration = 1; // Durée de la cinématique en ms
     const initCameraBeta = camera.beta;
     const initCameraRadius = camera.radius;
     const initFontParticlesMinEmitPower = fontParticles.minEmitPower;
@@ -750,13 +757,9 @@ export default function BlackjackScene(): HTMLElement {
           rpLeft.stop();
           rpRight.stop();
           placesTab.forEach(place => {
-            if (place.coinMesh) {
+            if (place.coinMesh)
               place.coinMesh.isVisible = true;
-            }
           });
-          // multiCoinStruct.forEach(coinStruct => {
-          //   coinStruct.forEach(coinMesh => coinMesh.isVisible = true);
-          // });
           // Show GUI elements
           labelBank.isVisible = true;
           labelTotalBet.isVisible = true;
@@ -764,12 +767,8 @@ export default function BlackjackScene(): HTMLElement {
           buttonQuit.isVisible = true;
           buttonVolume.isVisible = true;
           buttonBet.isVisible = true;
-          coinsButtonTab.forEach(coinButtonStruct => {
-            coinButtonStruct.coinButton.isVisible = true;
-          });
-          selectableAreas.forEach(selectableArea => {
-            selectableArea.selectBox.isVisible = true;
-          });
+          coinsButtonTab.forEach(coinsButton => coinsButton.coinButton.isVisible = true);
+          selectableAreas.forEach(area => area.selectBox.isVisible = true);
         }
         return;
       }

@@ -324,7 +324,7 @@ export default function PongScene(): HTMLElement {
       camera.rotation = cameraRotationTop;
 
       // Bouger la caméra
-      // camera.attachControl(canvasRef, true);
+      // camera.attachControl(canvas, true);
 
       // Lumière
       // new HemisphericLight("light", new Vector3(0, 1, 0), scene);
