@@ -9,7 +9,10 @@ import Tournament from './pages/Tournament';
 
 defineRoutes([
   { path: '/', render: Home },
-  // { path: '/select-game', render: SelectGame },
+  { path: '/register', render: () => Home("register") },
+  { path: '/login', render: () => Home("login") },
+  { path: '/2fa-verification', render: () => Home("2fa-verification") },
+  { path: '/select-game', render: () => Home("select-game") },
   { path: '/pong', render: GameCanvas },
   { path: '/pong3d', render: PongScene },
   { path: '/blackjack', render: Blackjack },

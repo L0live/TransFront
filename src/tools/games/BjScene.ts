@@ -1,0 +1,407 @@
+import { Engine, Scene,
+  HemisphericLight,
+  Vector3, Color3, GlowLayer,
+  StandardMaterial, AssetsManager,
+  ArcRotateCamera, MeshBuilder,
+  ParticleSystem, Mesh,
+  Texture, Color4, AbstractMesh
+} from "@babylonjs/core";
+import "@babylonjs/loaders/glTF"; // nécessaire pour le support GLTF/GLB
+import BjCards from "./BjCards";
+import BjGui from "./BjGui";
+
+export default class BjScene {
+
+  engine: Engine;
+  scene: Scene;
+  camera: ArcRotateCamera;
+  lights: HemisphericLight[] = [];
+  fontParticles: ParticleSystem;
+  purpleColor = new Color3(0.5, 0.2, 0.5);
+  purpleMat: StandardMaterial;
+  transparentMat: StandardMaterial;
+  assetsManager: AssetsManager;
+  reactors: {
+    left: { reactor: AbstractMesh; particles: ParticleSystem; };
+    right: { reactor: AbstractMesh; particles: ParticleSystem; };
+  };
+  Cards: BjCards;
+  Places: { [place: string]: {
+    camera: ArcRotateCamera | null;
+    meshes: {
+      placeMesh: Mesh;
+      coinMesh: AbstractMesh[] | null;
+      selectPlaceMesh: Mesh | null;
+      coinPlaceMesh: Mesh | null;
+    }
+  }};
+  CoinMaterials: { [name: string]: StandardMaterial; };
+
+  currentChoosenPlaces: string[] = [];
+
+  gui: BjGui;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.engine = new Engine(canvas, true);
+
+    this.scene = new Scene(this.engine);
+    this.scene.clearColor = new Color4(0.035, 0.02, 0.05, 1); // Couleur de fond
+
+    // Camera
+    this.camera = new ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2, 2.1, new Vector3(0, 1.5, 1.2), this.scene);
+    this.camera.attachControl(canvas, true);
+
+    // Lights
+    const light1 = new HemisphericLight("light1", new Vector3(0, 2, -1), this.scene);
+    light1.intensity = 0.01;
+    this.lights.push(light1);
+    const light2 = new HemisphericLight("light2", new Vector3(-3, 1, 1), this.scene);
+    light2.intensity = 0.01;
+    this.lights.push(light2);
+    const light3 = new HemisphericLight("light3", new Vector3(3, 1, 1), this.scene);
+    light3.intensity = 0.01;
+    this.lights.push(light3);
+
+    // Glow
+    const glow = new GlowLayer("glow", this.scene);
+    glow.intensity = 0.2; // Intensité de l'effet de glow
+    
+    // urlTexture
+    const sphericalTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", this.scene);
+
+    // Particules pour le fond
+   {  const fontParticulesColor = this.purpleColor.toColor4(); // Purple color
+      this.fontParticles = new ParticleSystem("fontParticles",50000, this.scene);
+      this.fontParticles.particleTexture = sphericalTexture;
+      this.fontParticles.emitter = new Vector3(0, 0, -10); // Position de l'émetteur
+      this.fontParticles.minEmitBox = new Vector3(0, 0, 0);
+      this.fontParticles.maxEmitBox = new Vector3(0, 0, 0);
+      this.fontParticles.minEmitPower = 10;
+      this.fontParticles.maxEmitPower = 10;
+      this.fontParticles.direction1 = new Vector3(1, 1, 1);
+      this.fontParticles.direction2 = new Vector3(-1, -1, -1);
+      this.fontParticles.color1 = fontParticulesColor;
+      this.fontParticles.addColorGradient(0, Color3.Black().toColor4());
+      this.fontParticles.addColorGradient(0.1, fontParticulesColor, Color3.White().toColor4());
+      this.fontParticles.addColorGradient(0.9, Color3.Black().toColor4());
+      this.fontParticles.minSize = 0.02;
+      this.fontParticles.maxSize = 0.02;
+      this.fontParticles.minLifeTime = 10;
+      this.fontParticles.maxLifeTime = 10;
+      this.fontParticles.emitRate = 1000;
+      this.fontParticles.start();
+    }
+
+    this.purpleMat = new StandardMaterial("purpleMat", this.scene);
+    this.purpleMat.diffuseColor = this.purpleColor;
+    this.purpleMat.emissiveColor = this.purpleColor;
+
+    this.transparentMat = new StandardMaterial("transparentMat", this.scene);
+    this.transparentMat.diffuseColor = Color3.White();
+    this.transparentMat.alpha = 0;
+
+    this.assetsManager = new AssetsManager(this.scene);
+
+    this.loadTableMesh();
+    
+    this.reactors = {
+      left: this.createReactor("ReactorLeftParticles", new Vector3(-1.2, 0.985, 0), sphericalTexture),
+      right: this.createReactor("ReactorRightParticles", new Vector3(1.2, 0.985, 0), sphericalTexture)
+    };
+
+    this.Cards = new BjCards(4, this.engine, this.scene, this.assetsManager);
+
+    this.Places = {
+      "p1": this.createPlace("p1", new Vector3(0.7, 1, 0.4), new Vector3(0.84, 1, 0.48), new Vector3(-Math.PI / 2, Math.PI / 3, Math.PI)),
+      "p2": this.createPlace("p2", new Vector3(0.4, 1, 0.687), new Vector3(0.48, 1, 0.84), new Vector3(-Math.PI / 2, Math.PI / 6.5, Math.PI)),
+      "p3": this.createPlace("p3", new Vector3(0, 1, 0.8), new Vector3(0, 1, 0.96), new Vector3(-Math.PI / 2, 0, Math.PI)),
+      "p4": this.createPlace("p4", new Vector3(-0.4, 1, 0.687), new Vector3(-0.48, 1, 0.84), new Vector3(-Math.PI / 2, -Math.PI / 6.5, Math.PI)),
+      "p5": this.createPlace("p5", new Vector3(-0.7, 1, 0.4), new Vector3(-0.84, 1, 0.48), new Vector3(-Math.PI / 2, -Math.PI / 3, Math.PI)),
+      "dealers": this.createPlace("dealers", new Vector3(0, 1, 0.32))
+    };
+    
+    this.scene.activeCamera = this.camera;
+
+    this.placesMeshVisibility(false);
+
+    this.CoinMaterials = {
+      "5": this.initCoinMaterials("5"),
+      "10": this.initCoinMaterials("10"),
+      "20": this.initCoinMaterials("20"),
+      "50": this.initCoinMaterials("50"),
+      "100": this.initCoinMaterials("100")
+    };
+
+    this.assetsManager.load();
+
+    const guiFunctions = {
+      endOfBetting: this.endOfBetting.bind(this),
+      addChoosenPlace: this.addChoosenPlace.bind(this),
+      getSelectPlaceMesh: this.getSelectPlaceMesh.bind(this),
+      getCoinPlaceMesh: this.getCoinPlaceMesh.bind(this),
+      setCameraToPlace: this.setCameraToPlace.bind(this),
+      setCoinMaterial: this.setCoinMaterial.bind(this),
+      hideCoinMesh: this.hideCoinMesh.bind(this)
+    }
+
+    this.gui = new BjGui(this.scene, canvas.width, canvas.height, guiFunctions);
+
+    this.render(this.gui);
+  }
+
+  start() {
+    this.engine.runRenderLoop(() => {
+      this.scene.render();
+    });
+  }
+
+  stop() {
+    this.engine.dispose();
+    this.scene.dispose();
+  }
+
+  private render(gui: BjGui) {
+    let cinematicEndUp = false;
+    let cinematicElapsedTime = 0;
+    // const cinematicDuration = 3000; // Durée de la cinématique en ms
+    const cinematicDuration = 1; // Durée de la cinématique en ms
+    const initCameraBeta = this.camera.beta;
+    const initCameraRadius = this.camera.radius;
+    const initFontParticlesMinEmitPower = this.fontParticles.minEmitPower;
+    const initFontParticlesMaxEmitPower = this.fontParticles.maxEmitPower;
+
+    this.scene.onBeforeRenderObservable.add(() => {
+      const deltaTime = this.engine.getDeltaTime(); // en millisecondes
+
+      if (!gui.started())
+        return;
+        // buttonPlay.isVisible = false; // for debugging
+      
+      // Cinematic
+      if (!cinematicEndUp) {
+        cinematicElapsedTime += deltaTime;
+        const t = Math.min(cinematicElapsedTime / cinematicDuration, 1); // progression de 0 à 1
+        // Camera
+        this.camera.beta = initCameraBeta + t * -Math.PI / 3.7; // Réduction de l'angle de la caméra
+        this.camera.radius = initCameraRadius + t * -1.4; // Réduction de la distance de la caméra
+        // Font particles
+        this.fontParticles.minEmitPower = initFontParticlesMinEmitPower + t * -3;
+        this.fontParticles.maxEmitPower = initFontParticlesMaxEmitPower + t * -3;
+        // Reactors
+        this.reactors.left.reactor.position.x = -1.2 + t * 0.08; // Déplacement du réacteur gauche
+        this.reactors.right.reactor.position.x = 1.2 + t * -0.08; // Déplacement du réacteur droit
+        // Reactors particles
+        this.reactors.left.particles.minLifeTime = 1 + t * -1;
+        this.reactors.left.particles.maxLifeTime = 1 + t * -1;
+        this.reactors.right.particles.minLifeTime = 1 + t * -1;
+        this.reactors.right.particles.maxLifeTime = 1 + t * -1;
+        if (cinematicElapsedTime >= cinematicDuration) {
+          cinematicEndUp = true;
+          // Set lights to game intensity
+          this.lights[0].intensity = 0.2;
+          this.lights[1].intensity = 0.4;
+          this.lights[2].intensity = 0.3;
+          // Stop reactors particles
+          this.reactors.left.particles.stop();
+          this.reactors.right.particles.stop();
+          Object.values(this.Places).forEach(place => {
+            if (place.meshes.coinPlaceMesh) place.meshes.coinPlaceMesh.isVisible = true;
+            if (place.meshes.selectPlaceMesh) place.meshes.selectPlaceMesh.isVisible = true;
+          });
+          // Show GUI elements
+          this.placesMeshVisibility(true);
+          gui.constGuiVisibility(true);
+          gui.betGuiVisibility(true);
+
+          this.Cards.resetDeck();
+        }
+        return;
+      }
+    });
+  }
+
+  private loadTableMesh() {
+    const taskTable = this.assetsManager.addContainerTask("loadGLB", "", "models/", "floatingBlackjackTable.glb");
+
+    taskTable.onSuccess = (taskTable) => {
+      taskTable.loadedContainer.addAllToScene();
+      // Container elements: Table, ArmRest, DealersBand
+      // Principal material
+      const material = new StandardMaterial("material", this.scene);
+      material.diffuseColor = new Color3(119/255, 70/255, 52/255);
+
+      taskTable.loadedContainer.meshes.find(mesh => mesh.name === "ArmRest")!.material = material;
+      taskTable.loadedContainer.meshes.find(mesh => mesh.name === "DealersBand")!.material = material;
+    };
+
+    taskTable.onError = (taskTable, message, exception) => {
+        console.error("Erreur de chargement :", message, exception);
+    };
+  }
+
+  private createReactor(name: string, position: Vector3, particlesTexture: Texture) {
+    // Reactor
+    const reactor = MeshBuilder.CreateSphere(name, { diameter: 0.15, arc: 0.5 }, this.scene);
+    reactor.position = position;
+    reactor.material = this.purpleMat;
+    const cap = MeshBuilder.CreateDisc("cap", {radius: 0.075, tessellation: 32 }, this.scene);
+    cap.parent = reactor;
+    cap.rotation.x = Math.PI; // à ajuster selon l'orientation
+    cap.material = this.purpleMat; // autre matériau (par exemple rouge)
+
+    // Reactor Particles
+    const particles = new ParticleSystem(name, 500, this.scene);
+    particles.particleTexture = particlesTexture;
+    particles.emitter = position; // Position de l'émetteur
+    particles.minEmitBox = new Vector3(0, 0, 0);
+    particles.maxEmitBox = new Vector3(0, 0, 0);
+    particles.direction1 = new Vector3(0, 0, 1);
+    particles.direction2 = new Vector3(0, 0, 1);
+    particles.minLifeTime = 1;
+    particles.maxLifeTime = 1;
+    particles.emitRate = 100;
+    particles.minEmitPower = 1.5;
+    particles.maxEmitPower = 1.5;
+    particles.minSize = 0.2;
+    particles.maxSize = 0.2;
+    particles.addSizeGradient(0, 0.2);
+    particles.addSizeGradient(0.5, 0.1);
+    particles.addSizeGradient(1, 0);
+    particles.addColorGradient(0, this.purpleColor.toColor4(1));
+    particles.addColorGradient(0.9, Color3.Black().toColor4(1));
+    particles.start();
+
+    return {reactor, particles};
+  }
+  
+  private loadCoinMesh(
+    position: Vector3,
+    onReady: (meshes: AbstractMesh[]) => void
+  ): AbstractMesh[] {
+    const taskCoin = this.assetsManager.addContainerTask("loadGLB", "", "models/", "Coin5.glb");
+
+    let coinMeshes: AbstractMesh[] = [];
+
+    taskCoin.onSuccess = (taskCoin) => {
+      taskCoin.loadedContainer.addAllToScene();
+      coinMeshes = taskCoin.loadedContainer.meshes;
+      coinMeshes.forEach(mesh => mesh.material = this.transparentMat);
+
+      coinMeshes[0].scaling = new Vector3(0.025, 0.025, 0.025);
+      coinMeshes[0].position = position;
+      coinMeshes[0].rotation = new Vector3(0, 0, Math.PI);
+
+      onReady(coinMeshes);
+    };
+
+    taskCoin.onError = (taskCoin, message, exception) => {
+      console.error(`Erreur de chargement des pièces :`, message, exception);
+    };
+
+    return coinMeshes;
+  }
+
+  private createPlace(name: string, placePosition: Vector3, coinPosition?: Vector3, coinRotation?: Vector3) {
+    const placeMesh = MeshBuilder.CreateSphere(name + "PlaceMesh", { diameter: 0.02 }, this.scene);
+    placeMesh.position = placePosition;
+    placeMesh.material = this.purpleMat;
+
+    let coinMesh: AbstractMesh[] | null = null;
+    let selectPlaceMesh: Mesh | null = null;
+    let coinPlaceMesh: Mesh | null = null;
+    let camera: ArcRotateCamera | null = null;
+
+    if (coinPosition && coinRotation) {
+      coinMesh = this.loadCoinMesh(coinPosition, (meshes) => {
+        this.Places[name].meshes.coinMesh = meshes;
+      });
+
+      selectPlaceMesh = MeshBuilder.CreateDisc(name + "SelectPlace", { radius: 0.205 }, this.scene);
+      selectPlaceMesh.position = placePosition;
+      selectPlaceMesh.rotation._x = -Math.PI / 2;
+      selectPlaceMesh.isVisible = false; // Initially hidden
+
+      coinPlaceMesh = MeshBuilder.CreateDisc(name + "CoinPlace", { radius: 0.05 }, this.scene);
+      coinPlaceMesh.position = coinPosition;
+      coinPlaceMesh.position._y += 0.0001; // Slightly above the selectMesh to avoid z-fighting
+      coinPlaceMesh.rotation = coinRotation;
+      coinPlaceMesh.isVisible = false; // Initially hidden
+
+      camera = new ArcRotateCamera(name + "Camera", Math.PI / 2 - coinRotation.y, Math.PI / 5, 2.55, new Vector3(), this.scene);
+    }
+
+    return {
+      camera,
+      meshes: {
+        placeMesh,
+        coinMesh,
+        selectPlaceMesh,
+        coinPlaceMesh
+      }
+    };
+  }
+
+  private initCoinMaterials(textureName: string): StandardMaterial {
+    const MatCoinTexture = new Texture(`assets/${textureName}.png`, this.scene);
+    MatCoinTexture.uOffset = 0.04; // Adjust texture offset for better alignment
+    const MatCoin = new StandardMaterial(`MatCoin${textureName}`, this.scene);
+    MatCoin.hasTexture(MatCoinTexture);
+    MatCoin.diffuseTexture = MatCoinTexture;
+    MatCoin.emissiveTexture = MatCoinTexture;
+    return MatCoin;
+  }
+
+  private placesMeshVisibility(visible: boolean) {
+    Object.values(this.Places).forEach(place => {
+      place.meshes.placeMesh.isVisible = visible;
+    });
+  }
+
+  endOfBetting() {
+    this.currentChoosenPlaces.sort();
+
+    this.Places["dealers"].meshes.placeMesh.material = this.transparentMat;
+    this.currentChoosenPlaces.forEach(place => {
+      this.Places[place].meshes.placeMesh.material = this.transparentMat;
+    });
+
+    this.Cards.beginDealingCards(this.currentChoosenPlaces);
+  }
+
+  addChoosenPlace(place: string) {
+    this.currentChoosenPlaces.push(place);
+  }
+
+  getSelectPlaceMesh(place: string) {
+    return this.Places[place].meshes.selectPlaceMesh;
+  }
+
+  getCoinPlaceMesh(place: string) {
+    return this.Places[place].meshes.coinPlaceMesh;
+  }
+
+  setCameraToPlace(place: string) {
+    if (place === "default") {
+      this.scene.activeCamera = this.camera;
+      return;
+    }
+    this.scene.activeCamera = this.Places[place].camera!;
+  }
+
+  setCoinMaterial(place: string, matName: string) {
+    this.Places[place].meshes.coinMesh?.forEach(coin => coin.material = this.CoinMaterials[matName]);
+  }
+
+  hideCoinMesh(place: string) {
+    this.Places[place].meshes.coinMesh?.forEach(coin => coin.material = this.transparentMat);
+  }
+
+  resetPlaces() {
+    this.Cards.cleanPlaces();
+
+    Object.values(this.Places).forEach(place => {
+      place.meshes.placeMesh.material = this.purpleMat;
+      place.meshes.coinMesh?.forEach(coin => coin.material = this.transparentMat);
+    });
+  }
+}

@@ -1,6 +1,6 @@
 // Pong.ts
 import Victor from "victor";
-import Path from "./usePath";
+import Path from "../tools/games/PgPath";
 
 export default function GameCanvas(): HTMLElement {
   const container = document.createElement('div');

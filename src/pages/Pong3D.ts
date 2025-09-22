@@ -5,7 +5,7 @@ import { Engine, Scene,
   ParticleSystem, Texture
 } from "@babylonjs/core";
 import Victor from "victor";
-import Path from "./usePath";
+import Path from "../tools/games/PgPath";
 import { AdvancedDynamicTexture, Button, InputText, TextBlock } from "@babylonjs/gui";
 
 export default function PongScene(): HTMLElement {

@@ -1,0 +1,69 @@
+import { navigate } from "../router";
+import { checkConnection, register } from "./APIStorageManager";
+
+export default function Login(): HTMLElement {
+  checkConnection().then((connected) => {
+    if (connected) {
+      navigate('/select-game');
+    }
+  });
+
+  const form: { [name: string]: string} = {};
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex flex-col justify-center items-center gap-8 p-16 h-[500px] w-[400px] bg-[#0000000e] rounded-xl backdrop-blur-2xl';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Login';
+  title.className = 'text-4xl font-bold text-white';
+  wrapper.appendChild(title);
+
+  const createInput = (placeholder: string, key: string, type?: string): HTMLInputElement => {
+    const input = document.createElement('input');
+    input.placeholder = placeholder;
+    input.type = type ? type : key;
+    input.className = 'text-black p-2 rounded-md w-[220px]';
+    input.oninput = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      form[key] = target.value;
+    }
+    return input;
+  };
+
+  wrapper.appendChild(createInput('Enter your nickname', 'name', 'text'));
+  wrapper.appendChild(createInput('Enter your email', 'email'));
+  wrapper.appendChild(createInput('Enter your password', 'password'));
+
+  const buttonsWrapper = document.createElement('div');
+  buttonsWrapper.className = 'flex justify-center w-full gap-10';
+
+  const loginButton = document.createElement('button');
+  loginButton.textContent = 'Login';
+  loginButton.className = 'bg-[#646cff] text-white rounded-full h-[35px] w-[90px] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
+  loginButton.onclick = () => {
+    console.log('Login Form:', form);
+
+    if (!form.name || !form.email || !form.password)
+      return;
+
+    if (!register(form.name, form.email, form.password)) {
+      console.error('User creation failed');
+      return;
+    }
+    navigate('/2fa-verification');
+  };
+  buttonsWrapper.appendChild(loginButton);
+
+  const registerButton = document.createElement('button');
+  registerButton.textContent = 'Or Register';
+  registerButton.className = 'bg-[#646cff] text-white rounded-full h-[35px] w-[100px] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
+  registerButton.onclick = () => {
+    console.log('Register Form:', form);
+    navigate('/register');
+  };
+  buttonsWrapper.appendChild(registerButton);
+
+  wrapper.appendChild(buttonsWrapper);
+
+  return wrapper;
+}
