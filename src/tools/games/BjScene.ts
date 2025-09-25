@@ -7,7 +7,7 @@ import { Engine, Scene,
   Texture, Color4, AbstractMesh
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF"; // nécessaire pour le support GLTF/GLB
-import BjCards from "./BjCards";
+import BjCard from "./BjCard";
 import BjGui from "./BjGui";
 
 export default class BjScene {
@@ -25,14 +25,14 @@ export default class BjScene {
     left: { reactor: AbstractMesh; particles: ParticleSystem; };
     right: { reactor: AbstractMesh; particles: ParticleSystem; };
   };
-  Cards: BjCards;
+  Cards: BjCard;
   Places: { [place: string]: {
     camera: ArcRotateCamera | null;
     meshes: {
-      placeMesh: Mesh;
+      ballMesh: Mesh;
+      placeAreaMesh: Mesh;
       coinMesh: AbstractMesh[] | null;
-      selectPlaceMesh: Mesh | null;
-      coinPlaceMesh: Mesh | null;
+      coinAreaMesh: Mesh | null;
     }
   }};
   CoinMaterials: { [name: string]: StandardMaterial; };
@@ -53,13 +53,13 @@ export default class BjScene {
 
     // Lights
     const light1 = new HemisphericLight("light1", new Vector3(0, 2, -1), this.scene);
-    light1.intensity = 0.01;
+    light1.intensity = 0.05;
     this.lights.push(light1);
     const light2 = new HemisphericLight("light2", new Vector3(-3, 1, 1), this.scene);
-    light2.intensity = 0.01;
+    light2.intensity = 0.05;
     this.lights.push(light2);
     const light3 = new HemisphericLight("light3", new Vector3(3, 1, 1), this.scene);
-    light3.intensity = 0.01;
+    light3.intensity = 0.05;
     this.lights.push(light3);
 
     // Glow
@@ -109,15 +109,15 @@ export default class BjScene {
       right: this.createReactor("ReactorRightParticles", new Vector3(1.2, 0.985, 0), sphericalTexture)
     };
 
-    this.Cards = new BjCards(4, this.engine, this.scene, this.assetsManager);
+    this.Cards = new BjCard(4, this.scene, this.assetsManager);
 
     this.Places = {
-      "p1": this.createPlace("p1", new Vector3(0.7, 1, 0.4), new Vector3(0.84, 1, 0.48), new Vector3(-Math.PI / 2, Math.PI / 3, Math.PI)),
-      "p2": this.createPlace("p2", new Vector3(0.4, 1, 0.687), new Vector3(0.48, 1, 0.84), new Vector3(-Math.PI / 2, Math.PI / 6.5, Math.PI)),
-      "p3": this.createPlace("p3", new Vector3(0, 1, 0.8), new Vector3(0, 1, 0.96), new Vector3(-Math.PI / 2, 0, Math.PI)),
-      "p4": this.createPlace("p4", new Vector3(-0.4, 1, 0.687), new Vector3(-0.48, 1, 0.84), new Vector3(-Math.PI / 2, -Math.PI / 6.5, Math.PI)),
-      "p5": this.createPlace("p5", new Vector3(-0.7, 1, 0.4), new Vector3(-0.84, 1, 0.48), new Vector3(-Math.PI / 2, -Math.PI / 3, Math.PI)),
-      "dealers": this.createPlace("dealers", new Vector3(0, 1, 0.32))
+      "p1": this.createPlace("p1", new Vector3(0.7, 1, 0.4), new Vector3(-Math.PI / 2, Math.PI / 3, Math.PI), new Vector3(0.84, 1, 0.48)),
+      "p2": this.createPlace("p2", new Vector3(0.408, 1, 0.695), new Vector3(-Math.PI / 2, Math.PI / 6.5, Math.PI), new Vector3(0.48, 1, 0.84)),
+      "p3": this.createPlace("p3", new Vector3(0, 1, 0.8), new Vector3(-Math.PI / 2, 0, Math.PI), new Vector3(0, 1, 0.96)),
+      "p4": this.createPlace("p4", new Vector3(-0.408, 1, 0.695), new Vector3(-Math.PI / 2, -Math.PI / 6.5, Math.PI), new Vector3(-0.48, 1, 0.84)),
+      "p5": this.createPlace("p5", new Vector3(-0.7, 1, 0.4), new Vector3(-Math.PI / 2, -Math.PI / 3, Math.PI), new Vector3(-0.84, 1, 0.48)),
+      "dealers": this.createPlace("dealers", new Vector3(0, 1, 0.32), new Vector3(-Math.PI / 2, 0, Math.PI))
     };
     
     this.scene.activeCamera = this.camera;
@@ -137,8 +137,8 @@ export default class BjScene {
     const guiFunctions = {
       endOfBetting: this.endOfBetting.bind(this),
       addChoosenPlace: this.addChoosenPlace.bind(this),
-      getSelectPlaceMesh: this.getSelectPlaceMesh.bind(this),
-      getCoinPlaceMesh: this.getCoinPlaceMesh.bind(this),
+      getPlaceAreaMesh: this.getPlaceAreaMesh.bind(this),
+      getCoinAreaMesh: this.getCoinAreaMesh.bind(this),
       setCameraToPlace: this.setCameraToPlace.bind(this),
       setCoinMaterial: this.setCoinMaterial.bind(this),
       hideCoinMesh: this.hideCoinMesh.bind(this)
@@ -205,8 +205,8 @@ export default class BjScene {
           this.reactors.left.particles.stop();
           this.reactors.right.particles.stop();
           Object.values(this.Places).forEach(place => {
-            if (place.meshes.coinPlaceMesh) place.meshes.coinPlaceMesh.isVisible = true;
-            if (place.meshes.selectPlaceMesh) place.meshes.selectPlaceMesh.isVisible = true;
+            place.meshes.placeAreaMesh.isVisible = true;
+            if (place.meshes.coinAreaMesh) place.meshes.coinAreaMesh.isVisible = true;
           });
           // Show GUI elements
           this.placesMeshVisibility(true);
@@ -301,42 +301,40 @@ export default class BjScene {
     return coinMeshes;
   }
 
-  private createPlace(name: string, placePosition: Vector3, coinPosition?: Vector3, coinRotation?: Vector3) {
-    const placeMesh = MeshBuilder.CreateSphere(name + "PlaceMesh", { diameter: 0.02 }, this.scene);
-    placeMesh.position = placePosition;
-    placeMesh.material = this.purpleMat;
+  private createPlace(name: string, placePosition: Vector3, rotation: Vector3, coinPosition?: Vector3) {
+    const ballMesh = MeshBuilder.CreateSphere(name + "PlaceMesh", { diameter: 0.02 }, this.scene);
+    ballMesh.position = placePosition;
+    ballMesh.material = this.purpleMat;
 
+    const placeAreaMesh = MeshBuilder.CreateDisc(name + "SelectPlace", { radius: 0.205 }, this.scene);
+    placeAreaMesh.position = placePosition;
+    placeAreaMesh.rotation = rotation;
+    placeAreaMesh.isVisible = false;
     let coinMesh: AbstractMesh[] | null = null;
-    let selectPlaceMesh: Mesh | null = null;
-    let coinPlaceMesh: Mesh | null = null;
+    let coinAreaMesh: Mesh | null = null;
     let camera: ArcRotateCamera | null = null;
 
-    if (coinPosition && coinRotation) {
+    if (coinPosition) {
       coinMesh = this.loadCoinMesh(coinPosition, (meshes) => {
         this.Places[name].meshes.coinMesh = meshes;
       });
 
-      selectPlaceMesh = MeshBuilder.CreateDisc(name + "SelectPlace", { radius: 0.205 }, this.scene);
-      selectPlaceMesh.position = placePosition;
-      selectPlaceMesh.rotation._x = -Math.PI / 2;
-      selectPlaceMesh.isVisible = false; // Initially hidden
+      coinAreaMesh = MeshBuilder.CreateDisc(name + "CoinPlace", { radius: 0.05 }, this.scene);
+      coinAreaMesh.position = coinPosition;
+      coinAreaMesh.position._y += 0.0001; // Slightly above the selectMesh to avoid z-fighting
+      coinAreaMesh.rotation = rotation;
+      coinAreaMesh.isVisible = false;
 
-      coinPlaceMesh = MeshBuilder.CreateDisc(name + "CoinPlace", { radius: 0.05 }, this.scene);
-      coinPlaceMesh.position = coinPosition;
-      coinPlaceMesh.position._y += 0.0001; // Slightly above the selectMesh to avoid z-fighting
-      coinPlaceMesh.rotation = coinRotation;
-      coinPlaceMesh.isVisible = false; // Initially hidden
-
-      camera = new ArcRotateCamera(name + "Camera", Math.PI / 2 - coinRotation.y, Math.PI / 5, 2.55, new Vector3(), this.scene);
+      camera = new ArcRotateCamera(name + "Camera", Math.PI / 2 - rotation.y, Math.PI / 5, 2.55, new Vector3(), this.scene);
     }
 
     return {
       camera,
       meshes: {
-        placeMesh,
+        ballMesh,
+        placeAreaMesh,
         coinMesh,
-        selectPlaceMesh,
-        coinPlaceMesh
+        coinAreaMesh
       }
     };
   }
@@ -353,31 +351,38 @@ export default class BjScene {
 
   private placesMeshVisibility(visible: boolean) {
     Object.values(this.Places).forEach(place => {
-      place.meshes.placeMesh.isVisible = visible;
+      place.meshes.ballMesh.isVisible = visible;
     });
   }
 
-  endOfBetting() {
-    this.currentChoosenPlaces.sort();
+  async endOfBetting() {
+    this.currentChoosenPlaces.reverse();
 
-    this.Places["dealers"].meshes.placeMesh.material = this.transparentMat;
+    this.Places["dealers"].meshes.ballMesh.material = this.transparentMat;
     this.currentChoosenPlaces.forEach(place => {
-      this.Places[place].meshes.placeMesh.material = this.transparentMat;
+      this.Places[place].meshes.ballMesh.material = this.transparentMat;
     });
 
-    this.Cards.beginDealingCards(this.currentChoosenPlaces);
+    await this.Cards.beginDealingCards(this.currentChoosenPlaces);
+    // this.scene.activeCamera = this.Places['p3'].camera!;
+    // this.gui.cardsInteractionsVisibility(true);
+    this.currentChoosenPlaces.forEach(place => {
+      this.Places[place].meshes.placeAreaMesh
+      this.gui.setPlaceCardsValue(place, "7/18");
+    });
+    this.gui.setPlaceCardsValue("dealers", "9/20");
   }
 
   addChoosenPlace(place: string) {
     this.currentChoosenPlaces.push(place);
   }
 
-  getSelectPlaceMesh(place: string) {
-    return this.Places[place].meshes.selectPlaceMesh;
+  getPlaceAreaMesh(place: string) {
+    return this.Places[place].meshes.placeAreaMesh;
   }
 
-  getCoinPlaceMesh(place: string) {
-    return this.Places[place].meshes.coinPlaceMesh;
+  getCoinAreaMesh(place: string) {
+    return this.Places[place].meshes.coinAreaMesh;
   }
 
   setCameraToPlace(place: string) {
@@ -388,7 +393,12 @@ export default class BjScene {
     this.scene.activeCamera = this.Places[place].camera!;
   }
 
-  setCoinMaterial(place: string, matName: string) {
+  setCoinMaterial(place: string, bet: number) {
+    let matName = "5";
+    if (bet >= 100) matName = "100";
+    else if (bet >= 50) matName = "50";
+    else if (bet >= 20) matName = "20";
+    else if (bet >= 10) matName = "10";
     this.Places[place].meshes.coinMesh?.forEach(coin => coin.material = this.CoinMaterials[matName]);
   }
 
@@ -400,7 +410,7 @@ export default class BjScene {
     this.Cards.cleanPlaces();
 
     Object.values(this.Places).forEach(place => {
-      place.meshes.placeMesh.material = this.purpleMat;
+      place.meshes.ballMesh.material = this.purpleMat;
       place.meshes.coinMesh?.forEach(coin => coin.material = this.transparentMat);
     });
   }
