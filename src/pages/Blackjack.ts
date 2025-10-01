@@ -5,11 +5,15 @@ export default function Blackjack(): HTMLElement {
   container.className = 'flex justify-center items-center h-screen bg-[#09050d]';
 
   const canvas = document.createElement('canvas');
-  // canvas.className = 'block fixed';
   canvas.className = 'block fixed w-full h-full';
+  container.appendChild(canvas);
 
-  let width = window.innerWidth;
-  let height = window.innerHeight;
+  // Initial size, will be resized for the responsive
+  canvas.width = 2032;
+  canvas.height = 1016;
+  canvas.style.width = canvas.width + "px";
+  canvas.style.height = canvas.height + "px";
+
   const resizeCanvas = () => {
     if (window.innerHeight / window.innerWidth > 0.5) {
       canvas.width = window.innerWidth;
@@ -18,22 +22,20 @@ export default function Blackjack(): HTMLElement {
       canvas.height = window.innerHeight;
       canvas.width = canvas.height / 0.5;
     }
-    // canvas.width = window.innerWidth;
-    // canvas.height = window.innerHeight;
-    width = canvas.width;
-    height = canvas.height;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.style.width = canvas.width + "px";
+    canvas.style.height = canvas.height + "px";
   };
-  resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
-  container.appendChild(canvas);
-
+  
   function game() {
     const bjScene = new BjScene(canvas);
-    bjScene.start();
 
-    // return bjScene.stop();
+    resizeCanvas();
+    bjScene.engine.resize();
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", () => bjScene.engine.resize());
+    
+    bjScene.start();
   }
 
   game();

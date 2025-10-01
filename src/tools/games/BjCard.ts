@@ -1,7 +1,7 @@
 import { Engine, Scene, Vector3,
   StandardMaterial, Texture,
   AbstractMesh, AssetsManager,
-  MultiMaterial
+  MultiMaterial, Material
 } from "@babylonjs/core";
 
 type Card = {
@@ -12,8 +12,9 @@ type Card = {
 export default class BjCard {
   private scene: Scene;
   private assetsManager: AssetsManager;
+  private cardBackMaterial: StandardMaterial;
   private Cards: Card[] = [];
-  private CardsMultiMaterials: { name: string; material: MultiMaterial }[] = [];
+  private CardsMaterials: { name: string; material: StandardMaterial }[] = [];
   private Deck: Card[] = [];
   private DiscardTray: Card[] = [];
   private Places: { [name: string]: {
@@ -32,6 +33,13 @@ export default class BjCard {
   constructor(numberOfDeck: number, scene: Scene, assetsManager: AssetsManager) {
     this.scene = scene;
     this.assetsManager = assetsManager;
+
+    const cardBackTexture = new Texture(`assets/cardBackTexture.png`, this.scene);
+    cardBackTexture.vOffset = 0.04; // Adjust texture offset for better alignment
+    this.cardBackMaterial = new StandardMaterial(`MatCardBack`, this.scene);
+    this.cardBackMaterial.hasTexture(cardBackTexture);
+    this.cardBackMaterial.diffuseTexture = cardBackTexture;
+    this.cardBackMaterial.emissiveTexture = cardBackTexture;
 
     const cardsPatterns = ["Spades", "Hearts", "Diamonds", "Clubs"];
     const cardsNames = ["As", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"];
@@ -52,11 +60,14 @@ export default class BjCard {
 
   private createCard(index: number) {
 
-    const taskCard = this.assetsManager.addContainerTask("loadGLB", "", "models/", "card.glb");
+    const taskCard = this.assetsManager.addContainerTask("loadGLB", "", "models/", "cardTest.glb");
 
     taskCard.onSuccess = (taskCard) => {
       taskCard.loadedContainer.addAllToScene();
       const cardMeshes = taskCard.loadedContainer.meshes;
+
+      cardMeshes[2].material = this.cardBackMaterial;
+      cardMeshes[2].material.markAsDirty(Material.AllDirtyFlag);
 
       cardMeshes[0].position = this.dealStep.position.clone();
       cardMeshes[0].position.y -= 0.005;
@@ -75,24 +86,14 @@ export default class BjCard {
   }
 
   private createCardMaterial(name: string, pattern: string) {
-    const cardFrontTexture = new Texture(`assets/${pattern}/${name}.png`, this.scene);
-    cardFrontTexture.vOffset = 0.04; // Adjust texture offset for better alignment
-    const MatCardFront = new StandardMaterial(`MatCardFront_${name}_of_${pattern}`, this.scene);
-    MatCardFront.hasTexture(cardFrontTexture);
-    MatCardFront.diffuseTexture = cardFrontTexture;
-    MatCardFront.emissiveTexture = cardFrontTexture;
+    const cardTexture = new Texture(`assets/${pattern}/${name}.png`, this.scene);
+    cardTexture.vOffset = 0.04; // Adjust texture offset for better alignment
+    const cardMaterial = new StandardMaterial(`MatCardFront_${name}_of_${pattern}`, this.scene);
+    cardMaterial.hasTexture(cardTexture);
+    cardMaterial.diffuseTexture = cardTexture;
+    cardMaterial.emissiveTexture = cardTexture;
 
-    const cardBackTexture = new Texture(`assets/cardBack.png`, this.scene);
-    cardBackTexture.vOffset = 0.04; // Adjust texture offset for better alignment
-    const MatCardBack = new StandardMaterial(`MatCardBack`, this.scene);
-    MatCardBack.hasTexture(cardBackTexture);
-    MatCardBack.diffuseTexture = cardBackTexture;
-    MatCardBack.emissiveTexture = cardBackTexture;
-
-    const cardMultiMaterial = new MultiMaterial(`MatCard_${name}_of_${pattern}`, this.scene);
-    cardMultiMaterial.subMaterials = [MatCardFront, MatCardBack];
-
-    this.CardsMultiMaterials.push({ name: `${name}_of_${pattern}`, material: cardMultiMaterial });
+    this.CardsMaterials.push({ name: `${name}_of_${pattern}`, material: cardMaterial });
   }
 
   async resetDeck() {
@@ -119,6 +120,8 @@ export default class BjCard {
       });
       await this.delay(0.01);
     };
+    shuffledCards.reverse();
+    await this.delay(150);
     this.Deck = shuffledCards;
   }
 
@@ -128,7 +131,7 @@ export default class BjCard {
         cards: [],
         position: new Vector3(0, 1, 0.32),
         splitedCards: [],
-        rotation: new Vector3(-Math.PI, 0, Math.PI),
+        rotation: new Vector3(-Math.PI, Math.PI, Math.PI),
         stackOffset: new Vector3(0.04, 0.0001),
         splitOffset: new Vector3()
       },
@@ -215,8 +218,9 @@ export default class BjCard {
     const dealingOrder = [...places, 'dealer', ...places, 'dealer'];
 
     for (const place of dealingOrder) {
-      await this.dealPlace(this.CardsMultiMaterials[Math.floor(Math.random() * this.CardsMultiMaterials.length)].name, place);
-    };
+      await this.dealPlace(this.CardsMaterials[Math.floor(Math.random() * this.CardsMaterials.length)].name, place);
+    }
+    await this.delay(1000);
   }
 
   private discardTrayPosition = new Vector3(0, 1, 0);
@@ -244,19 +248,20 @@ export default class BjCard {
     }
     
     while (!this.Deck.length) {
-      await this.delay(200);
+      await this.delay(10);
     }
 
     const card = this.Deck.shift()!;
 
-    const cardMultiMaterial = this.CardsMultiMaterials.find(mat => mat.name === cardName);
-    if (!cardMultiMaterial) {
+    const cardMaterial = this.CardsMaterials.find(mat => mat.name === cardName);
+    if (!cardMaterial) {
       console.error(`Unknown card name: ${cardName}`);
       return;
     }
-    console.log("cardName: ", cardName);
     card.name = cardName;
-    card.mesh[1].material = cardMultiMaterial.material;
+    card.mesh[1].material = cardMaterial.material;
+    card.mesh[1].material.markAsDirty(Material.AllDirtyFlag);
+
 
     let cardStack = place.cards;
 
@@ -274,7 +279,7 @@ export default class BjCard {
       if (!cardStack.length)
         this.moveCard(card, place.position.add(place.stackOffset), place.rotation);
       else
-        this.moveCard(card, place.position.add(new Vector3(0, 0.002)), place.rotation.add(new Vector3(0, 0, -Math.PI)));
+        this.moveCard(card, place.position.add(new Vector3(0, 0.002)), place.rotation.add(new Vector3(0, 0, -Math.PI)), false, 300);
     }
     cardStack.push(card);
 

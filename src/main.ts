@@ -2,8 +2,8 @@ import { defineRoutes, renderRoute } from './router';
 import './style.css';
 import Home from './pages/Home';
 // import SelectGame from './pages/SelectGame';
-import GameCanvas from './pages/Pong';
-import PongScene from './pages/Pong3D';
+import Pong from './pages/Pong';
+import Pong3D from './pages/Pong3D';
 import Blackjack from './pages/Blackjack';
 import Tournament from './pages/Tournament';
 
@@ -13,8 +13,8 @@ defineRoutes([
   { path: '/login', render: () => Home("login") },
   { path: '/2fa-verification', render: () => Home("2fa-verification") },
   { path: '/select-game', render: () => Home("select-game") },
-  { path: '/pong', render: GameCanvas },
-  { path: '/pong3d', render: PongScene },
+  { path: '/pong', render: Pong },
+  { path: '/pong3d', render: Pong3D },
   { path: '/blackjack', render: Blackjack },
   { path: '/tournament', render: Tournament },
 ]);

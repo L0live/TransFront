@@ -9,9 +9,12 @@ import { Engine, Scene,
 import "@babylonjs/loaders/glTF"; // nécessaire pour le support GLTF/GLB
 import BjCard from "./BjCard";
 import BjGui from "./BjGui";
+// import { ThinParticleSystem } from "@babylonjs/core/Particles/thinParticleSystem";
 
 export default class BjScene {
 
+  canvas: HTMLCanvasElement;
+  // size: { width: number; height: number; };
   engine: Engine;
   scene: Scene;
   camera: ArcRotateCamera;
@@ -41,15 +44,29 @@ export default class BjScene {
 
   gui: BjGui;
 
+  initCamera: { beta: number, radius: number };
+  initFontParticlesEmitPower: number ;
+
+  initCinematicCamera: { beta: number, radius: number };
+  initCinematicFontParticlesEmitPower: number ;
+
   constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.engine = new Engine(canvas, true);
 
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.035, 0.02, 0.05, 1); // Couleur de fond
 
+    this.initCamera = { beta: Math.PI / 2 - Math.PI / 3.7, radius: 0.7 };
+    this.initCinematicCamera = { beta: Math.PI / 2, radius: 2.1 };
+
     // Camera
-    this.camera = new ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2, 2.1, new Vector3(0, 1.5, 1.2), this.scene);
-    this.camera.attachControl(canvas, true);
+    this.camera = new ArcRotateCamera(
+      "camera", Math.PI / 2,
+      this.initCinematicCamera.beta,
+      this.initCinematicCamera.radius,
+      new Vector3(0, 1.5, 1.2), this.scene);
+    // this.camera.attachControl(canvas, true);
 
     // Lights
     const light1 = new HemisphericLight("light1", new Vector3(0, 2, -1), this.scene);
@@ -69,6 +86,9 @@ export default class BjScene {
     // urlTexture
     const sphericalTexture = new Texture("https://playground.babylonjs.com/textures/flare.png", this.scene);
 
+    this.initFontParticlesEmitPower = 7;
+    this.initCinematicFontParticlesEmitPower = 10;
+
     // Particules pour le fond
    {  const fontParticulesColor = this.purpleColor.toColor4(); // Purple color
       this.fontParticles = new ParticleSystem("fontParticles",50000, this.scene);
@@ -76,8 +96,8 @@ export default class BjScene {
       this.fontParticles.emitter = new Vector3(0, 0, -10); // Position de l'émetteur
       this.fontParticles.minEmitBox = new Vector3(0, 0, 0);
       this.fontParticles.maxEmitBox = new Vector3(0, 0, 0);
-      this.fontParticles.minEmitPower = 10;
-      this.fontParticles.maxEmitPower = 10;
+      this.fontParticles.minEmitPower = this.initCinematicFontParticlesEmitPower;
+      this.fontParticles.maxEmitPower = this.initCinematicFontParticlesEmitPower;
       this.fontParticles.direction1 = new Vector3(1, 1, 1);
       this.fontParticles.direction2 = new Vector3(-1, -1, -1);
       this.fontParticles.color1 = fontParticulesColor;
@@ -144,9 +164,9 @@ export default class BjScene {
       hideCoinMesh: this.hideCoinMesh.bind(this)
     }
 
-    this.gui = new BjGui(this.scene, canvas.width, canvas.height, guiFunctions);
+    this.gui = new BjGui(canvas.width, canvas.height, guiFunctions);
 
-    this.render(this.gui);
+    this.render();
   }
 
   start() {
@@ -160,62 +180,66 @@ export default class BjScene {
     this.scene.dispose();
   }
 
-  private render(gui: BjGui) {
+  private stepProgression(step: number, startValue: number, endValue: number) {
+    return startValue + (endValue - startValue) * step;
+  }
+
+  playCinematic(duration: number, elapsedTime: number, deltaTime: number) {
+
+    elapsedTime += deltaTime;
+    const step = Math.min(elapsedTime / duration, 1);
+    // Camera
+    this.camera.beta = this.stepProgression(step, this.initCinematicCamera.beta, this.initCamera.beta);
+    this.camera.radius = this.stepProgression(step, this.initCinematicCamera.radius, this.initCamera.radius);
+    // Font particles
+    this.fontParticles.minEmitPower = this.stepProgression(step, this.initCinematicFontParticlesEmitPower, this.initFontParticlesEmitPower);
+    this.fontParticles.maxEmitPower = this.stepProgression(step, this.initCinematicFontParticlesEmitPower, this.initFontParticlesEmitPower);
+    // Reactors
+    this.reactors.left.reactor.position.x = this.stepProgression(step, -1.2, -1.12);
+    this.reactors.right.reactor.position.x = this.stepProgression(step, 1.2, 1.12);
+    // Reactors Particles
+    Object.values(this.reactors).forEach(reactor => {
+      reactor.particles.minEmitPower = this.stepProgression(step, 1, 0);
+      reactor.particles.maxEmitPower = this.stepProgression(step, 1, 0);
+    });
+    // Lights
+    this.lights[0].intensity = this.stepProgression(step, 0.05, 0.2);
+    this.lights[1].intensity = this.stepProgression(step, 0.05, 0.4);
+    this.lights[2].intensity = this.stepProgression(step, 0.05, 0.3);
+    if (elapsedTime >= duration) {
+      // Stop reactors particles
+      this.reactors.left.particles.stop();
+      this.reactors.right.particles.stop();
+      Object.values(this.Places).forEach(place => {
+        place.meshes.placeAreaMesh.isVisible = true;
+        if (place.meshes.coinAreaMesh) place.meshes.coinAreaMesh.isVisible = true;
+      });
+      // Show GUI elements
+      this.placesMeshVisibility(true);
+      this.gui.constGuiVisibility(true);
+      this.gui.betGuiVisibility(true);
+
+      this.Cards.resetDeck();
+    }
+    return elapsedTime;
+  }
+
+  private render() {
+    let elapsedTime = 0;
     let cinematicEndUp = false;
-    let cinematicElapsedTime = 0;
-    // const cinematicDuration = 3000; // Durée de la cinématique en ms
-    const cinematicDuration = 1; // Durée de la cinématique en ms
-    const initCameraBeta = this.camera.beta;
-    const initCameraRadius = this.camera.radius;
-    const initFontParticlesMinEmitPower = this.fontParticles.minEmitPower;
-    const initFontParticlesMaxEmitPower = this.fontParticles.maxEmitPower;
 
     this.scene.onBeforeRenderObservable.add(() => {
       const deltaTime = this.engine.getDeltaTime(); // en millisecondes
 
-      if (!gui.started())
+      if (!this.gui.started())
         return;
         // buttonPlay.isVisible = false; // for debugging
       
       // Cinematic
       if (!cinematicEndUp) {
-        cinematicElapsedTime += deltaTime;
-        const t = Math.min(cinematicElapsedTime / cinematicDuration, 1); // progression de 0 à 1
-        // Camera
-        this.camera.beta = initCameraBeta + t * -Math.PI / 3.7; // Réduction de l'angle de la caméra
-        this.camera.radius = initCameraRadius + t * -1.4; // Réduction de la distance de la caméra
-        // Font particles
-        this.fontParticles.minEmitPower = initFontParticlesMinEmitPower + t * -3;
-        this.fontParticles.maxEmitPower = initFontParticlesMaxEmitPower + t * -3;
-        // Reactors
-        this.reactors.left.reactor.position.x = -1.2 + t * 0.08; // Déplacement du réacteur gauche
-        this.reactors.right.reactor.position.x = 1.2 + t * -0.08; // Déplacement du réacteur droit
-        // Reactors particles
-        this.reactors.left.particles.minLifeTime = 1 + t * -1;
-        this.reactors.left.particles.maxLifeTime = 1 + t * -1;
-        this.reactors.right.particles.minLifeTime = 1 + t * -1;
-        this.reactors.right.particles.maxLifeTime = 1 + t * -1;
-        if (cinematicElapsedTime >= cinematicDuration) {
+        elapsedTime = this.playCinematic(3000, elapsedTime, deltaTime);
+        if (elapsedTime >= 3000)
           cinematicEndUp = true;
-          // Set lights to game intensity
-          this.lights[0].intensity = 0.2;
-          this.lights[1].intensity = 0.4;
-          this.lights[2].intensity = 0.3;
-          // Stop reactors particles
-          this.reactors.left.particles.stop();
-          this.reactors.right.particles.stop();
-          Object.values(this.Places).forEach(place => {
-            place.meshes.placeAreaMesh.isVisible = true;
-            if (place.meshes.coinAreaMesh) place.meshes.coinAreaMesh.isVisible = true;
-          });
-          // Show GUI elements
-          this.placesMeshVisibility(true);
-          gui.constGuiVisibility(true);
-          gui.betGuiVisibility(true);
-
-          this.Cards.resetDeck();
-        }
-        return;
       }
     });
   }
@@ -364,7 +388,7 @@ export default class BjScene {
     });
 
     await this.Cards.beginDealingCards(this.currentChoosenPlaces);
-    // this.scene.activeCamera = this.Places['p3'].camera!;
+    // this.scene.activeCamera = this.Places['p1'].camera!;
     // this.gui.cardsInteractionsVisibility(true);
     this.currentChoosenPlaces.forEach(place => {
       this.Places[place].meshes.placeAreaMesh

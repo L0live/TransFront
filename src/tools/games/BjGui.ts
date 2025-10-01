@@ -1,6 +1,7 @@
 import { AdvancedDynamicTexture,
   Button, Control,
-  Rectangle, TextBlock
+  Rectangle, TextBlock,
+  ScrollViewer
 } from "@babylonjs/gui";
 import { Scene, Vector2
 } from "@babylonjs/core";
@@ -8,7 +9,6 @@ import { navigate } from '../../router';
 
 export default class BjGui {
   ui: AdvancedDynamicTexture;
-  scene: Scene;
   width: number;
   height: number;
 
@@ -45,9 +45,8 @@ export default class BjGui {
     split: Button;
   };
 
-  constructor(scene: Scene, width: number, height: number, sceneFunctions: any) {
+  constructor(width: number, height: number, sceneFunctions: any) {
     this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    this.scene = scene;
     this.width = width;
     this.height = height;
 
@@ -59,9 +58,9 @@ export default class BjGui {
 
     // Play Button
     this.playButton = Button.CreateSimpleButton("playButton", "PLAY"); {
-      this.playButton.width = this.resize({ x: 170 }) + "px";
-      this.playButton.height = this.resize({ y: 70 }) + "px";
-      this.playButton.fontSize = "32px";
+      this.playButton.width = 136 + "px";
+      this.playButton.height = 51 + "px";
+      this.playButton.fontSize = 32 + "px";
       this.playButton.color = "black";
       this.playButton.cornerRadius = 15;
       this.playButton.thickness = 0;
@@ -75,16 +74,15 @@ export default class BjGui {
     }
 
     this.initConstGui();
-    (this.ui.getControlByName("TotalBetLabel") as TextBlock).isVisible = false;
 
     this.Bet = {
       button: this.createBetButton(),
       coinsButtons: {
-        "5": this.createCoinButton(5, new Vector2(-150, -165)),
-        "10": this.createCoinButton(10, new Vector2(-90, -235)),
-        "20": this.createCoinButton(20, new Vector2(0, -255)),
-        "50": this.createCoinButton(50, new Vector2(90, -235)),
-        "100": this.createCoinButton(100, new Vector2(150, -165))
+        "5": this.createCoinButton(5, new Vector2(-120, -120.6)),
+        "10": this.createCoinButton(10, new Vector2(-72, -171.8)),
+        "20": this.createCoinButton(20, new Vector2(0, -186.4)),
+        "50": this.createCoinButton(50, new Vector2(72, -171.8)),
+        "100": this.createCoinButton(100, new Vector2(120, -120.6))
       },
       areas: {
         "p1": this.createArea("p1"),
@@ -101,25 +99,16 @@ export default class BjGui {
     this.cardsInteractionsVisibility(false);
   }
 
-  private resize({x, y, fontSize}: {x?: number, y?: number, fontSize?: number}): number {
-    if (x)
-      return x / 2540 * this.width;
-    if (y)
-      return y / 1390 * this.height;
-    if (fontSize)
-      return fontSize; // TO DO: adapt font size
-    return 0;
-  }
-
   private initConstGui() {
     // Bank label
     const labelBank = new TextBlock("BankLabel");
     labelBank.text = `Bank: ${this.bankAmount} €`;
     labelBank.verticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
     labelBank.horizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_LEFT;
-    labelBank.left = this.resize({ x: 20 });
-    labelBank.width = this.resize({ x: 150 }) + "px";
-    labelBank.height = this.resize({ y: 40 }) + "px";
+    labelBank.left = 16 + "px";
+    labelBank.width = 160 + "px";
+    labelBank.height = 36.5 + "px";
+    labelBank.fontSize = 24 + "px";
     labelBank.color = "white";
     this.ui.addControl(labelBank);
 
@@ -128,23 +117,25 @@ export default class BjGui {
     labelTotalBet.text = `Total Bet: ${this.totalBetAmount} €`;
     labelTotalBet.verticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
     labelTotalBet.horizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_LEFT;
-    labelTotalBet.left = this.resize({ x: 180 });
-    labelTotalBet.width = this.resize({ x: 180 }) + "px";
-    labelTotalBet.height = this.resize({ y: 40 }) + "px";
+    labelTotalBet.left = 176 + "px";
+    labelTotalBet.width = 200 + "px";
+    labelTotalBet.height = 36.5 + "px";
+    labelTotalBet.fontSize = 24 + "px";
     labelTotalBet.color = "white";
+    labelTotalBet.isVisible = false;
     this.ui.addControl(labelTotalBet);
 
     // Help Button
     const buttonHelp = Button.CreateSimpleButton("helpButton", "?");
     buttonHelp.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_LEFT;
     buttonHelp.verticalAlignment = Button.VERTICAL_ALIGNMENT_TOP;
-    buttonHelp.top = this.resize({ y: 20 });
-    buttonHelp.left = this.resize({ x: 20 });
-    buttonHelp.width = this.resize({ x: 40 }) + "px";
-    buttonHelp.height = this.resize({ y: 40 }) + "px";
-    buttonHelp.fontSize = 24;
+    buttonHelp.top = 14.6 + "px";
+    buttonHelp.left = 16 + "px";
+    buttonHelp.width = 40 + "px";
+    buttonHelp.height = 40 + "px";
+    buttonHelp.fontSize = 24 + "px";
     buttonHelp.color = "white";
-    buttonHelp.cornerRadius = 20;
+    buttonHelp.cornerRadius = 50;
     buttonHelp.thickness = 0;
     buttonHelp.background = "black";
     buttonHelp.onPointerEnterObservable.add(() => {
@@ -161,13 +152,22 @@ export default class BjGui {
       fontHelp.thickness = 0;
       fontHelp.background = "black";
       fontHelp.alpha = 0.1;
+      const scrollViewer = new ScrollViewer("helpScrollViewer");
+      scrollViewer.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_LEFT;
+      scrollViewer.verticalAlignment = Button.VERTICAL_ALIGNMENT_TOP;
+      scrollViewer.barSize = 10;
+      scrollViewer.top = 50 + "px";
+      scrollViewer.left = 16 + "px";
+      scrollViewer.width = 520 + "px";
+      scrollViewer.height = 730 + "px";
+      scrollViewer.barColor = "white";
+      scrollViewer.barBackground = "transparent";
+      scrollViewer.alpha = 0.7;
+      scrollViewer.thickness = 0;
       const boxHelp = new Rectangle("helpBox");
-      boxHelp.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_LEFT;
-      boxHelp.verticalAlignment = Button.VERTICAL_ALIGNMENT_TOP;
-      boxHelp.top = this.resize({ y: 70 });
-      boxHelp.left = this.resize({ x: 20 });
-      boxHelp.width = this.resize({ x: 650 }) + "px";
-      boxHelp.height = this.resize({ y: 1050 }) + "px";
+      boxHelp.parent = scrollViewer;
+      boxHelp.width = 510 + "px";
+      boxHelp.height = 1270 + "px";
       boxHelp.color = "white";
       boxHelp.background = "black";
       boxHelp.alpha = 0.8;
@@ -176,52 +176,81 @@ export default class BjGui {
       const textTitleHelp = new TextBlock("helpTitleText", "🎲 Règles du Blackjack");
       textTitleHelp.parent = boxHelp;
       textTitleHelp.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_TOP;
-      textTitleHelp.top = this.resize({ y: 20 });
+      textTitleHelp.top = 20 + "px";
       textTitleHelp.color = "white";
-      textTitleHelp.fontSize = 18;
+      textTitleHelp.fontSize = 24 + "px";
       boxHelp.addControl(textTitleHelp);
-      const textHelp = new TextBlock("helpText", "    🎯 Objectif du jeu \n \
-Le but est de battre le croupier en ayant une main dont la valeur est la plus proche \n possible de 21, sans jamais dépasser ce chiffre. \n\n \
-🃏 Valeur des cartes \n \
-Cartes de 2 à 10 → valeur égale au chiffre. \n \
-Figures (Valet, Dame, Roi) → 10 points. \n \
-As → 1 ou 11 points (au choix du joueur, selon ce qui avantage la main). \n\n \
-▶️ Déroulement d’une partie \n\n \
-Mise : le joueur place sa mise. \n\n \
-Distribution : \n \
-Chaque joueur reçoit 2 cartes face visible. \n \
-Le croupier reçoit 2 cartes : 1 face visible et 1 face cachée. \n\n \
-Tour du joueur : \n \
-Tirer (Hit) : demander une carte supplémentaire. \n \
-Rester (Stand) : garder sa main et passer la main au croupier. \n \
-Doubler (Double Down) : doubler la mise et recevoir une seule carte supplémentaire. \n \
-Séparer (Split) : si les 2 cartes ont la même valeur, possibilité de séparer en 2 mains \n distinctes (chaque main joue séparément, avec une mise supplémentaire). \n\n \
-Tour du croupier : \n \
-Le croupier révèle sa carte cachée. \n \
-Il doit tirer des cartes jusqu’à atteindre au moins 17 points. \n\n \
-🏆 Résultats \n \
-Si le joueur dépasse 21 → il perd immédiatement (Bust). \n \
-Si le croupier dépasse 21 → le joueur gagne. \n \
-Si la main du joueur est plus proche de 21 que celle du croupier → le joueur gagne. \n \
-Si le joueur et le croupier ont la même valeur → égalité (Push), la mise est rendue. \n\n \
-💎 Blackjack \n \
-Un Blackjack est obtenu avec un As + une carte valant 10 dès la distribution initiale. \n \
-Il bat toute autre combinaison, sauf un autre Blackjack (égalité). \n \
-Gain classique : 1,5 fois la mise.");
+      let rulesText: string;
+      { rulesText = "    🎯 Objectif du jeu\n \
+Le but est de battre le croupier en ayant une main\n \
+dont la valeur est la plus proche de 21, sans jamais\n \
+dépasser ce chiffre.\n \
+\n \
+🃏 Valeur des cartes\n \
+Cartes de 2 à 10 → valeur égale au chiffre.\n \
+Figures (Valet, Dame, Roi) → 10 points.\n \
+As → 1 ou 11 points (au choix du joueur, selon ce qui\n \
+avantage la main).\n \
+\n \
+▶️ Déroulement d’une partie\n \
+\n \
+Mise : le joueur place sa mise.\n \
+\n \
+Distribution :\n \
+Chaque joueur reçoit 2 cartes face visible.\n \
+Le croupier reçoit 2 cartes : 1 face visible et une face\n \
+cachée.\n \
+\n \
+Tour du joueur :\n \
+Tirer : demander une carte supplémentaire.\n \
+Rester : garder sa main.\n \
+Doubler : doubler la mise et recevoir une seule carte\n \
+supplémentaire.\n \
+Séparer : si les 2 premières cartes ont la même\n \
+valeur, possibilité de séparer en 2 mains distinctes\n \
+jouées séparément, avec une mise supplémentaire de\n \
+la même valeur.\n \
+\n \
+Tour du croupier :\n \
+Le croupier révèle sa carte cachée.\n \
+Il doit tirer des cartes jusqu’à atteindre au moins 17\n \
+points.\n \
+\n \
+🏆 Résultats\n \
+Le joueur dépasse 21 → il perd.\n \
+Le croupier dépasse 21 → le joueur gagne.\n \
+La main du joueur est plus proche de 21 que celle du\n \
+croupier → le joueur gagne.\n \
+Le joueur et le croupier ont la même valeur → égalité,\n \
+la mise est rendue.\n \
+\n \
+💎 Blackjack\n \
+Un Blackjack est obtenu avec un As + une carte valant\n \
+10 dès la distribution initiale.\n \
+Il bat toute autre combinaison, sauf un autre\n \
+Blackjack (égalité).\n \
+\n \
+Gain classique : 1,5 fois la mise."; }
+      const textHelp = new TextBlock("helpText", rulesText);
       textHelp.parent = boxHelp;
-      textHelp.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      textHelp.left = this.resize({ x: 20 });
-      textHelp.top = this.resize({ y: 20 });
+      textHelp.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_LEFT;
+      textHelp.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_TOP;
+      textHelp.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      textHelp.left = 8 + "px";
+      textHelp.top = 70 + "px";
       textHelp.color = "white";
-      textHelp.fontSize = 12;
+      textHelp.fontSize = 20 + "px";
+      textHelp.lineSpacing = 2 + "px";
       boxHelp.addControl(textHelp);
       fontHelp.onPointerClickObservable.add(() => {
         // Close the quit confirmation box
         this.ui.removeControl(fontHelp);
-        this.ui.removeControl(boxHelp);
+        this.ui.removeControl(scrollViewer);
       });
+      scrollViewer.addControl(boxHelp);
       this.ui.addControl(fontHelp);
-      this.ui.addControl(boxHelp);
+      this.ui.addControl(scrollViewer);
+      // this.ui.addControl(boxHelp);
     });
     this.ui.addControl(buttonHelp);
 
@@ -229,13 +258,13 @@ Gain classique : 1,5 fois la mise.");
     const buttonQuit = Button.CreateSimpleButton("quitButton", "🚪");
     buttonQuit.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_LEFT;
     buttonQuit.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    buttonQuit.top = this.resize({ y: -40 });
-    buttonQuit.left = this.resize({ x: 20 });
-    buttonQuit.width = this.resize({ x: 40 }) + "px";
-    buttonQuit.height = this.resize({ y: 40 }) + "px";
-    buttonQuit.fontSize = 24;
+    buttonQuit.top = -40 + "px";
+    buttonQuit.left = 16 + "px";
+    buttonQuit.width = 40 + "px";
+    buttonQuit.height = 40 + "px";
+    buttonQuit.fontSize = 24 + "px";
     buttonQuit.color = "white";
-    buttonQuit.cornerRadius = 20;
+    buttonQuit.cornerRadius = 50;
     buttonQuit.thickness = 0;
     buttonQuit.background = "black";
     buttonQuit.onPointerEnterObservable.add(() => {
@@ -254,8 +283,8 @@ Gain classique : 1,5 fois la mise.");
       fontQuit.alpha = 0.5;
 
       const boxQuit = new Rectangle("quitBox");
-      boxQuit.width = this.resize({ x: 600 }) + "px";
-      boxQuit.height = this.resize({ y: 300 }) + "px";
+      boxQuit.width = 480 + "px";
+      boxQuit.height = 220 + "px";
       boxQuit.color = "white";
       boxQuit.background = "black";
       boxQuit.alpha = 1;
@@ -264,18 +293,18 @@ Gain classique : 1,5 fois la mise.");
 
       const textQuit = new TextBlock("quitMessageText", "Are you sure you want to quit?");
       textQuit.color = "white";
-      textQuit.top = this.resize({ y: -50 });
-      textQuit.fontSize = 20;
+      textQuit.top = -36.5 + "px";
+      textQuit.fontSize = 20 + "px";
       boxQuit.addControl(textQuit);
 
       const buttonQuitConfirmation = Button.CreateSimpleButton("quitConfirmationButton", "Quit");
-      buttonQuitConfirmation.width = this.resize({ x: 100 }) + "px";
-      buttonQuitConfirmation.height = this.resize({ y: 40 }) + "px";
+      buttonQuitConfirmation.width = 80 + "px";
+      buttonQuitConfirmation.height = 30 + "px";
       buttonQuitConfirmation.color = "grey";
       buttonQuitConfirmation.cornerRadius = 20;
       buttonQuitConfirmation.thickness = 1;
       buttonQuitConfirmation.background = "black";
-      buttonQuitConfirmation.top = this.resize({ y: 50 });
+      buttonQuitConfirmation.top = 36.5 + "px";
       buttonQuitConfirmation.onPointerEnterObservable.add(() => {
         buttonQuitConfirmation.color = "white"; // Change color on hover
       });
@@ -303,13 +332,13 @@ Gain classique : 1,5 fois la mise.");
     const buttonVolume = Button.CreateSimpleButton("volumeButton", "🔊");
     buttonVolume.horizontalAlignment = Button.HORIZONTAL_ALIGNMENT_LEFT;
     buttonVolume.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    buttonVolume.top = this.resize({ y: -90 });
-    buttonVolume.left = this.resize({ x: 20 });
-    buttonVolume.width = this.resize({ x: 40 }) + "px";
-    buttonVolume.height = this.resize({ y: 40 }) + "px";
-    buttonVolume.fontSize = 24;
-    buttonVolume.color = "white";
-    buttonVolume.cornerRadius = 20;
+    buttonVolume.top = -90 + "px";
+    buttonVolume.left = 16 + "px";
+    buttonVolume.width = 40 + "px";
+    buttonVolume.height = 40 + "px";
+    buttonVolume.fontSize = 24 + "px";
+    // buttonVolume.color = "white";
+    buttonVolume.cornerRadius = 50;
     buttonVolume.thickness = 0;
     buttonVolume.background = "black";
     buttonVolume.onPointerEnterObservable.add(() => {
@@ -336,15 +365,15 @@ Gain classique : 1,5 fois la mise.");
   private createCoinButton(value: number, position: Vector2) {
     const button = Button.CreateImageOnlyButton(`coinButton${value}`, `assets/${value}.svg`);
     button.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    button.left = this.resize({ x: position.x });
-    button.top = this.resize({ y: position.y });
-    button.width = this.resize({ x: 70 }) + "px";
-    button.height = this.resize({ y: 70 }) + "px";
+    button.left = position.x + "px";
+    button.top = position.y + "px";
+    button.width = 56 + "px";
+    button.height = 56 + "px";
     button.cornerRadius = 35;
     button.thickness = 0;
     button.color = "black";
     button.background = "white";
-    button.fontSize = 24;
+    button.fontSize = 24 + "px";
 
     button.onPointerEnterObservable.add(() => {
       button.thickness = 1;
@@ -380,10 +409,10 @@ Gain classique : 1,5 fois la mise.");
   private createBetButton() {
     const button = Button.CreateSimpleButton("betButton", "BET");
     button.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    button.top = this.resize({ y: -20 });
-    button.width = this.resize({ x: 210 }) + "px";
-    button.height = this.resize({ y: 210 }) + "px";
-    button.fontSize = 48;
+    button.top = -14.6 + "px";
+    button.width = 170 + "px";
+    button.height = 165 + "px";
+    button.fontSize = 48 + "px";
     button.color = "black";
     button.cornerRadius = 100;
     button.thickness = 0;
@@ -401,6 +430,7 @@ Gain classique : 1,5 fois la mise.");
           this.sceneFunctions.addChoosenPlace(area.place);
           area.buttonCleanBet.isVisible = false;
         }
+        area.selectBox.onPointerEnterObservable.clear();
       });
       Object.values(this.Bet.coinsButtons).forEach(coin => {
         coin.isActive = false;
@@ -422,13 +452,13 @@ Gain classique : 1,5 fois la mise.");
       console.error(`Place area mesh for Dealers not found`);
       // return;
     }
-    const selectableAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(placeAreaMesh, this.resize({ x: 300 }), this.resize({ y: 300 }));
+    const selectableAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(placeAreaMesh, 240, 240);
 
     const cardsValue = new TextBlock(`dealersCardsValue`);
     cardsValue.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
-    cardsValue.top = -40;
+    cardsValue.top = -30 + "px";
     cardsValue.color = "white";
-    cardsValue.fontSize = 24;
+    cardsValue.fontSize = 24 + "px";
     cardsValue.isVisible = false;
     selectableAreaAttachedUI.addControl(cardsValue);
 
@@ -442,7 +472,7 @@ Gain classique : 1,5 fois la mise.");
       console.error(`Place area mesh for ${place} not found`);
       // return;
     }
-    const selectableAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(placeAreaMesh, this.resize({ x: 300 }), this.resize({ y: 300 }));
+    const selectableAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(placeAreaMesh, 240, 240);
 
     const selectBox = new Rectangle("selectBox");
     selectBox.thickness = 0;
@@ -460,9 +490,9 @@ Gain classique : 1,5 fois la mise.");
 
     const cardsValue = new TextBlock(`cardsValuePlace${place}`);
     cardsValue.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
-    cardsValue.top = -40;
+    cardsValue.top = -50 + "px";
     cardsValue.color = "white";
-    cardsValue.fontSize = 18;
+    cardsValue.fontSize = 18 + "px";
     cardsValue.isVisible = false;
     selectableAreaAttachedUI.addControl(cardsValue);
 
@@ -471,23 +501,23 @@ Gain classique : 1,5 fois la mise.");
       console.error(`Coin area mesh for ${place} not found`);
       // return;
     }
-    const coinAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(coinAreaMesh, this.resize({ x: 300 }), this.resize({ y: 300 }));
+    const coinAreaAttachedUI = AdvancedDynamicTexture.CreateForMesh(coinAreaMesh, 240, 240);
   
     const textBet = new TextBlock(`textBetPlace${place}`);
     textBet.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
     textBet.color = "white";
-    textBet.fontSize = 46;
+    textBet.fontSize = 46 + "px";
     textBet.isVisible = false;
     coinAreaAttachedUI.addControl(textBet);
 
     const buttonCleanBet = Button.CreateSimpleButton(`cleanBetPlace${place}`, "❌​​");
     buttonCleanBet.verticalAlignment = Button.VERTICAL_ALIGNMENT_TOP;
-    buttonCleanBet.width = this.resize({ x: 80 }) + "px";
-    buttonCleanBet.height = this.resize({ y: 80 }) + "px";
+    buttonCleanBet.width = 64 + "px";
+    buttonCleanBet.height = 58.5 + "px";
     buttonCleanBet.cornerRadius = 20;
     buttonCleanBet.thickness = 0;
     buttonCleanBet.background = "transparent";
-    buttonCleanBet.fontSize = 36;
+    buttonCleanBet.fontSize = 36 + "px";
     buttonCleanBet.isVisible = false;
     buttonCleanBet.onPointerEnterObservable.add(() => {
       buttonCleanBet.background = "white";
@@ -545,11 +575,11 @@ Gain classique : 1,5 fois la mise.");
     // Stand Button
     const stand = Button.CreateSimpleButton("standButton", "STAND");
     stand.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    stand.top = this.resize({ y: -200 });
-    stand.left = this.resize({ x: -100 });
-    stand.width = this.resize({ x: 170 }) + "px";
-    stand.height = this.resize({ y: 80 }  ) + "px";
-    stand.fontSize = "32px";
+    stand.top = -150 + "px";
+    stand.left = -80 + "px";
+    stand.width = 136 + "px";
+    stand.height = 60 + "px";
+    stand.fontSize = 32 + "px";
     stand.color = "black";
     stand.cornerRadius = 15;
     stand.thickness = 0;
@@ -566,11 +596,11 @@ Gain classique : 1,5 fois la mise.");
     // Hit Button
     const hit = Button.CreateSimpleButton("hitButton", "HIT");
     hit.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    hit.top = this.resize({ y: -200 });
-    hit.left = this.resize({ x: 100 });
-    hit.width = this.resize({ x: 170 }) + "px";
-    hit.height = this.resize({ y: 80 }) + "px";
-    hit.fontSize = "32px";
+    hit.top = -150 + "px";
+    hit.left = 80 + "px";
+    hit.width = 136 + "px";
+    hit.height = 60 + "px";
+    hit.fontSize = 32 + "px";
     hit.color = "black";
     hit.cornerRadius = 15;
     hit.thickness = 0;
@@ -586,11 +616,11 @@ Gain classique : 1,5 fois la mise.");
     // Double Down Button
     const doubleDown = Button.CreateSimpleButton("doubleDownButton", "DOUBLE DOWN");
     doubleDown.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    doubleDown.top = this.resize({ y: -90 });
-    doubleDown.left = this.resize({ x: -100 });
-    doubleDown.width = this.resize({ x: 360 }) + "px";
-    doubleDown.height = this.resize({ y: 80 }) + "px";
-    doubleDown.fontSize = "32px";
+    doubleDown.top = 65 + "px";
+    doubleDown.left = -80 + "px";
+    doubleDown.width = 288 + "px";
+    doubleDown.height = 60 + "px";
+    doubleDown.fontSize = 32 + "px";
     doubleDown.color = "black";
     doubleDown.cornerRadius = 15;
     doubleDown.thickness = 0;
@@ -607,11 +637,11 @@ Gain classique : 1,5 fois la mise.");
     // Split Button
     const split = Button.CreateSimpleButton("splitButton", "SPLIT");
     split.verticalAlignment = Button.VERTICAL_ALIGNMENT_BOTTOM;
-    split.top = this.resize({ y: -90 });
-    split.left = this.resize({ x: 195 });
-    split.width = this.resize({ x: 170 }) + "px";
-    split.height = this.resize({ y: 80 }) + "px";
-    split.fontSize = "32px";
+    split.top = -65 + "px";
+    split.left = 156 + "px";
+    split.width = 136 + "px";
+    split.height = 60 + "px";
+    split.fontSize = 32 + "px";
     split.color = "black";
     split.cornerRadius = 15;
     split.thickness = 0;

@@ -26,7 +26,7 @@ export default function GameSelection(): HTMLElement {
     return button;
   };
 
-  wrapper.appendChild(createGameButton('Pong', '/pong3d'));
+  wrapper.appendChild(createGameButton('Pong', '/pong'));
   wrapper.appendChild(createGameButton('Blackjack', '/blackjack'));
 
   return wrapper;
