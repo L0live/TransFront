@@ -20,7 +20,7 @@ export async function checkConnection() { // TO DO
   const user = getUser();
   const token = getToken();
 
-  if (!user || !token)
+  // if (!user || !token)
     return false;
 
   // const response = await fetch('http://localhost:3000/user/checkconnection', {

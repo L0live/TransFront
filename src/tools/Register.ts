@@ -11,7 +11,7 @@ export default function Register(): HTMLElement {
   const form: { [name: string]: string} = {};
 
   const wrapper = document.createElement('div');
-  wrapper.className = 'flex flex-col justify-center items-center gap-8 p-16 h-[500px] w-[400px] bg-[#0000000e] rounded-xl backdrop-blur-2xl';
+  wrapper.className = 'flex flex-col justify-center items-center gap-8 p-16 w-[30%] h-[60%] bg-[#0000000e] rounded-xl backdrop-blur-2xl';
 
   const title = document.createElement('h2');
   title.textContent = 'Register';
@@ -22,7 +22,7 @@ export default function Register(): HTMLElement {
     const input = document.createElement('input');
     input.placeholder = placeholder;
     input.type = type ? type : key;
-    input.className = 'text-black p-2 rounded-md w-[220px]';
+    input.className = 'text-black p-2 rounded-md w-[70%] h-[10%] w-max-[200px] text-xl';
     input.oninput = (e: Event) => {
       const target = e.target as HTMLInputElement;
       form[key] = target.value;
@@ -36,11 +36,11 @@ export default function Register(): HTMLElement {
   wrapper.appendChild(createInput('Confirm your password', 'confirmPassword', 'password'));
 
   const buttonsWrapper = document.createElement('div');
-  buttonsWrapper.className = 'flex justify-center w-full gap-10';
+  buttonsWrapper.className = 'flex justify-center w-full h-[10%] gap-10';
 
   const registerButton = document.createElement('button');
   registerButton.textContent = 'Register';
-  registerButton.className = 'bg-[#646cff] text-white rounded-full h-[35px] w-[90px] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
+  registerButton.className = 'bg-[#646cff] text-xl text-white rounded-full w-[50%] h-[100%] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
   registerButton.onclick = () => {
     console.log('Register Form:', form);
 
@@ -58,7 +58,7 @@ export default function Register(): HTMLElement {
 
   const loginButton = document.createElement('button');
   loginButton.textContent = 'Or Login';
-  loginButton.className = 'bg-[#646cff] text-white rounded-full h-[35px] w-[100px] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
+  loginButton.className = 'bg-[#646cff] text-xl text-white rounded-full w-[50%] h-[100%] hover:bg-[#535bf2] hover:drop-shadow-[0_0_10px_#535bf2]';
   loginButton.onclick = () => {
     console.log('Login Form:', form);
     navigate('/login');

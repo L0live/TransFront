@@ -1,12 +1,15 @@
 import PgScene from "../tools/games/PgScene";
+import DropDownMenu from "../tools/DropDownMenu";
 
 export default function Pong(): HTMLElement {
   const container = document.createElement('div');
-  container.className = 'flex justify-center items-center h-screen bg-gray-900';
-
+  container.className = 'flex justify-center items-center h-screen bg-black';
+  
   const canvas = document.createElement('canvas');
-  canvas.className = 'block fixed w-full h-full';
+  canvas.className = 'w-full h-full';
   container.appendChild(canvas);
+
+  container.appendChild(DropDownMenu());
 
   // Initial size, will be resized for the responsive
   canvas.width = 2032;

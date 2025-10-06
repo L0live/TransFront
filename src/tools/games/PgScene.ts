@@ -46,6 +46,8 @@ export default class PgScene {
     this.canvas = canvas;
     this.keys = keys;
     this.engine = new Engine(canvas, true);
+    // remove selection thikness on engine
+    this.engine.getRenderingCanvas()?.style.setProperty("outline", "none");
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color3(0.035, 0.02, 0.05).toColor4(); // Couleur de fond
 
@@ -61,7 +63,7 @@ export default class PgScene {
     this.camera = new FreeCamera("camera", this.cinematicPosition, this.scene);
     this.camera.setTarget(this.cinematicTarget);
     this.camera.rotation = cameraRotationTop;
-    this.camera.attachControl(canvas, true);
+    // this.camera.attachControl(canvas, true);
 
     // Glow layer
     const gl = new GlowLayer("glow", this.scene);
@@ -78,7 +80,7 @@ export default class PgScene {
     this.game = new PgGame(
       this.keys,
       {
-        update: (positions: { ball: Victor; paddleLeft: Victor; paddleRight: Victor },
+        update: async (positions: { ball: Victor; paddleLeft: Victor; paddleRight: Victor },
           speed: number, scores?: { left: number; right: number }, ballDirection?: Victor) => {
           this.updateBallPosition(positions.ball);
           this.updatePaddlePosition("left", positions.paddleLeft);
@@ -96,7 +98,7 @@ export default class PgScene {
           this.gameStartTime = 2000;
           this.gui.updateScore("left", leftScore);
           this.gui.updateScore("right", rightScore);
-          this.gui.resultVisibility(true);
+          this.gui.showResult();
         }
       },
       {
@@ -257,10 +259,10 @@ export default class PgScene {
   }
 
   triggerCollisionEffect(direction: Vector3) {
-    this.particles["collision"].direction1 = new Vector3(-1, 1, -1);
-    this.particles["collision"].direction2 = new Vector3(1, -1, 1);
-    this.particles["collision"].direction1.addInPlace(direction.scale(100));
-    this.particles["collision"].direction2.addInPlace(direction.scale(100));
+    this.particles["collision"].direction1 = new Vector3(-0.5, 0.5, -0.5);
+    this.particles["collision"].direction2 = new Vector3(0.5, -0.5, 0.5);
+    this.particles["collision"].direction1.addInPlace(direction);
+    this.particles["collision"].direction2.addInPlace(direction);
     this.particles["collision"].manualEmitCount = 100; // nombre de particules par collision
     this.particles["collision"].start();
   }
@@ -288,10 +290,9 @@ export default class PgScene {
         this.particles.font.minSize = initFontParticlesMinSize + t * 0.1;
         this.particles.font.maxSize = initFontParticlesMaxSize + t * 0.1;
         if (cinematicElapsedTime >= cinematicDuration) {
-        cinematicEndUp = true;
-        // fontParticles.color1 = new Color3(0, 0, 0).toColor4();
-        // fontParticles.color2 = new Color3(0, 0, 0).toColor4();
-        // fontParticles.colorDead = new Color3(0.7, 0, 1).toColor4();
+          cinematicEndUp = true;
+          this.gui.scoreVisibility(true);
+          this.gui.panelVisibility(true);
         }
         return;
       }
