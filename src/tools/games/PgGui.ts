@@ -1,10 +1,17 @@
-import { AdvancedDynamicTexture, Button, Control, Rectangle, InputText, TextBlock } from "@babylonjs/gui";
+import { AdvancedDynamicTexture,
+  Button, Control, Rectangle,
+  TextBlock, ScrollViewer
+} from "@babylonjs/gui";
 import { navigate } from "../../router";
 
 export default class PgGui {
+  hostPlayer: string;
+
   ui: AdvancedDynamicTexture;
 
   font: Rectangle;
+
+  goBackPage: string = "";
   goBackButton: Button;
 
   menu: {
@@ -18,6 +25,8 @@ export default class PgGui {
 
   tournament: {
     title: TextBlock,
+    hostText: TextBlock,
+    hostPlayer: TextBlock,
     selectSizeText: TextBlock,
     size4Text: TextBlock,
     size8Text: TextBlock,
@@ -25,7 +34,15 @@ export default class PgGui {
     addGuestButton: Button,
     addLoginButton: Button,
     numberOfAIText: TextBlock,
-    startButton: Button
+    playersScrollViewer: {
+      scrollViewer: ScrollViewer,
+      title: TextBlock,
+      playersBlock: Rectangle,
+      players: TextBlock[],
+      isVisible: boolean
+    },
+    resetplayersButton: Button,
+    launchButton: Button
   };
 
   pause: {
@@ -67,8 +84,22 @@ export default class PgGui {
     };
   };
 
-  constructor() {
+  result: {
+    title: TextBlock,
+    player: TextBlock,
+    wins: TextBlock,
+    playAgain: Button,
+    nextMatch: Button,
+    menu: Button
+  };
+
+  constructor(hostPlayer: string) {
+    this.hostPlayer = hostPlayer;
+
     this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    
+    this.panel = this.initPanel();
+    this.score = this.initScore();
 
     const fontBlock = new Rectangle("fontBlock"); {
       fontBlock.background = "black";
@@ -87,6 +118,7 @@ export default class PgGui {
       goBackButton.thickness = 0;
       goBackButton.background = "transparent";
       goBackButton.alpha = 0.7;
+      goBackButton.isVisible = false;
       goBackButton.onPointerEnterObservable.add(() => {
         goBackButton.color = "green";
         goBackButton.alpha = 1;
@@ -96,29 +128,47 @@ export default class PgGui {
         goBackButton.alpha = 0.7;
       });
       goBackButton.onPointerClickObservable.add(() => {
-        this.menuVisibility(true);
-        this.tournamentVisibility(false);
+        this.goBack();
       });
       this.ui.addControl(goBackButton);
     }
     this.goBackButton = goBackButton;
-  
+    
     this.menu = this.initMenu();
     this.tournament = this.initTournament();
     this.pause = this.initPause();
-    this.score = this.initScore();
-    this.panel = this.initPanel();
-    // this.result = this.initResult();
+    this.result = this.initResult();
 
-    this.menuVisibility(false);
-    // this.pauseVisibility(false);
+    // this.menuVisibility(false);
     this.tournamentVisibility(false);
+    this.pauseVisibility(false);
+    this.resultVisibility(false);
   }
 
   started() {
     if (this.startedType !== "")
       return this.startedType;
     return null;
+  }
+
+  goBack() {
+    this.resultVisibility(false);
+    this.menuVisibility(false);
+    this.pauseVisibility(false);
+    this.tournamentVisibility(false);
+
+    if (this.goBackPage == "menu") {
+      this.goBackButton.isVisible = false;
+      this.menuVisibility(true);
+    } else if (this.goBackPage == "tournament") {
+      this.tournamentVisibility(true);
+    } else if (this.goBackPage == "pause") {
+      this.goBackButton.isVisible = false;
+      this.pauseVisibility(true);
+    } else if (this.goBackPage == "result") {
+      this.goBackButton.isVisible = false;
+      this.resultVisibility(true);
+    }
   }
 
   private initMenu() {
@@ -177,7 +227,7 @@ export default class PgGui {
         this.menuVisibility(false);
 
         // AI level selection
-        this.startedType = "ai";
+        this.startedType = "vsAI";
       });
       this.ui.addControl(playVSAIButton);
     }
@@ -204,6 +254,8 @@ export default class PgGui {
 
         // Select tournament size (4, 8, 16)
         // add players as Guest or Login temporarily, the rest is AI (auto)
+        this.goBackPage = "menu";
+        this.goBackButton.isVisible = true;
         this.tournamentVisibility(true);
       });
       this.ui.addControl(tournamentButton);
@@ -277,7 +329,7 @@ export default class PgGui {
   private initPause() {
     const pauseTitle = new TextBlock("pauseTitle", "PAUSE"); {
       pauseTitle.width = 450 + "px";
-      pauseTitle.height = 130 + "px";
+      pauseTitle.height = 180 + "px";
       pauseTitle.top = "-200px";
       pauseTitle.fontSize = 132 + "px";
       pauseTitle.color = "white";
@@ -324,9 +376,8 @@ export default class PgGui {
         restartButton.alpha = 0.5;
       });
       restartButton.onPointerClickObservable.add(() => {
-        this.menuVisibility(false);
-
-        // Restart current game
+        this.startedType = "restart";
+        this.pauseVisibility(false);
       });
       this.ui.addControl(restartButton);
     }
@@ -349,10 +400,11 @@ export default class PgGui {
         menuButton.alpha = 0.5;
       });
       menuButton.onPointerClickObservable.add(() => {
+        
         this.pauseVisibility(false);
+        this.goBackPage = "pause";
+        this.goBackButton.isVisible = true;
         this.menuVisibility(true);
-
-        // Go back button
       });
       this.ui.addControl(menuButton);
     }
@@ -393,6 +445,17 @@ export default class PgGui {
       obj.isVisible = visible;
     });
     this.font.isVisible = visible;
+
+    if (!visible && this.goBackPage == "pause" && this.goBackButton.isVisible) {
+      this.goBackButton.isVisible = false;
+      this.menuVisibility(false);
+    }
+  }
+
+  isPaused() {
+    if (this.pause.title.isVisible || (this.goBackPage == "pause" && this.goBackButton.isVisible))
+      return true;
+    return false;
   }
 
   private initTournament() {
@@ -405,11 +468,32 @@ export default class PgGui {
       this.ui.addControl(tournamentTitle);
     }
 
+    const hostText = new TextBlock("hostText", "Host:"); {
+      hostText.width = 200 + "px";
+      hostText.height = 60 + "px";
+      hostText.top = "-150px";
+      hostText.left = "-250px";
+      hostText.fontSize = 32 + "px";
+      hostText.color = "white";
+      this.ui.addControl(hostText);
+    }
+
+    const hostPlayer = new TextBlock("hostPlayer", this.hostPlayer); {
+      hostPlayer.width = 200 + "px";
+      hostPlayer.height = 60 + "px";
+      hostPlayer.top = "-150px";
+      hostPlayer.left = "-125px";
+      hostPlayer.fontSize = 42 + "px";
+      hostPlayer.color = "purple";
+      this.ui.addControl(hostPlayer);
+    }
+
     const selectSizeText = new TextBlock("selectSizeText", "Select Size:"); {
-      selectSizeText.width = 400 + "px";
+      selectSizeText.width = 200 + "px";
       selectSizeText.height = 100 + "px";
       selectSizeText.top = "-150px";
-      selectSizeText.fontSize = 48 + "px";
+      selectSizeText.left = "110px";
+      selectSizeText.fontSize = 38 + "px";
       selectSizeText.color = "white";
       this.ui.addControl(selectSizeText);
     }
@@ -418,7 +502,7 @@ export default class PgGui {
       size4Text.width = 200 + "px";
       size4Text.height = 60 + "px";
       size4Text.top = "-50px";
-      size4Text.left = "-220px";
+      size4Text.left = "110px";
       size4Text.fontSize = 32 + "px";
       size4Text.color = "white";
       size4Text.alpha = 0.5;
@@ -429,7 +513,7 @@ export default class PgGui {
         size4Text.alpha = 0.5;
       });
       size4Text.onPointerClickObservable.add(() => {
-        // Select 4 players
+        this.tournamentSwitchToPlayersSetting(4);
       });
       this.ui.addControl(size4Text);
     }
@@ -437,7 +521,8 @@ export default class PgGui {
     const size8Text = new TextBlock("size8Text", "8 Players"); {
       size8Text.width = 200 + "px";
       size8Text.height = 60 + "px";
-      size8Text.top = "-50px";
+      size8Text.top = "25px";
+      size8Text.left = "110px";
       size8Text.fontSize = 32 + "px";
       size8Text.color = "white";
       size8Text.alpha = 0.5;
@@ -448,7 +533,7 @@ export default class PgGui {
         size8Text.alpha = 0.5;
       });
       size8Text.onPointerClickObservable.add(() => {
-        // Select 8 players
+        this.tournamentSwitchToPlayersSetting(8);
       });
       this.ui.addControl(size8Text);
     }
@@ -456,8 +541,8 @@ export default class PgGui {
     const size16Text = new TextBlock("size16Text", "16 Players"); {
       size16Text.width = 200 + "px";
       size16Text.height = 60 + "px";
-      size16Text.top = "-50px";
-      size16Text.left = "220px";
+      size16Text.top = "100px";
+      size16Text.left = "110px";
       size16Text.fontSize = 32 + "px";
       size16Text.color = "white";
       size16Text.alpha = 0.5;
@@ -468,15 +553,37 @@ export default class PgGui {
         size16Text.alpha = 0.5;
       });
       size16Text.onPointerClickObservable.add(() => {
-        // Select 16 players
+        this.tournamentSwitchToPlayersSetting(16);
       });
       this.ui.addControl(size16Text);
+    }
+
+    const addLoginButton = Button.CreateSimpleButton("addLoginButton", "Add Login"); {
+      addLoginButton.width = 200 + "px";
+      addLoginButton.height = 60 + "px";
+      addLoginButton.top = "-75px";
+      addLoginButton.left = "-150px";
+      addLoginButton.fontSize = 32 + "px";
+      addLoginButton.color = "white";
+      addLoginButton.thickness = 0;
+      addLoginButton.background = "transparent";
+      addLoginButton.alpha = 0.5;
+      addLoginButton.onPointerEnterObservable.add(() => {
+        addLoginButton.alpha = 1;
+      });
+      addLoginButton.onPointerOutObservable.add(() => {
+        addLoginButton.alpha = 0.5;
+      });
+      addLoginButton.onPointerClickObservable.add(() => {
+        // Add Login player
+      });
+      this.ui.addControl(addLoginButton);
     }
 
     const addGuestButton = Button.CreateSimpleButton("addGuestButton", "Add Guest"); {
       addGuestButton.width = 200 + "px";
       addGuestButton.height = 60 + "px";
-      addGuestButton.top = "100px";
+      // addGuestButton.top = "25px";
       addGuestButton.left = "-150px";
       addGuestButton.fontSize = 32 + "px";
       addGuestButton.color = "white";
@@ -495,62 +602,106 @@ export default class PgGui {
       this.ui.addControl(addGuestButton);
     }
 
-    const addLoginButton = Button.CreateSimpleButton("addLoginButton", "Add Login"); {
-      addLoginButton.width = 200 + "px";
-      addLoginButton.height = 60 + "px";
-      addLoginButton.top = "100px";
-      addLoginButton.left = "150px";
-      addLoginButton.fontSize = 32 + "px";
-      addLoginButton.color = "white";
-      addLoginButton.thickness = 0;
-      addLoginButton.background = "transparent";
-      addLoginButton.alpha = 0.5;
-      addLoginButton.onPointerEnterObservable.add(() => {
-        addLoginButton.alpha = 1;
-      });
-      addLoginButton.onPointerOutObservable.add(() => {
-        addLoginButton.alpha = 0.5;
-      });
-      addLoginButton.onPointerClickObservable.add(() => {
-        // Add Login player
-      });
-      this.ui.addControl(addLoginButton);
-    }
-
     const numberOfAIText = new TextBlock("numberOfAIText", "Number of AI: 0"); {
       numberOfAIText.width = 400 + "px";
       numberOfAIText.height = 100 + "px";
-      numberOfAIText.top = "200px";
-      numberOfAIText.fontSize = 32 + "px";
+      numberOfAIText.top = "100px";
+      numberOfAIText.fontSize = 28 + "px";
       numberOfAIText.color = "white";
+      numberOfAIText.left = "-150px";
+      numberOfAIText.alpha = 0.7;
       this.ui.addControl(numberOfAIText);
     }
 
-    const startButton = Button.CreateSimpleButton("startButton", "Start Tournament"); {
-      startButton.width = 300 + "px";
-      startButton.height = 70 + "px";
-      startButton.top = "300px";
-      startButton.fontSize = 38 + "px";
-      startButton.color = "white";
-      startButton.cornerRadius = 20;
-      startButton.thickness = 0;
-      startButton.background = "transparent";
-      startButton.alpha = 0.7;
-      startButton.onPointerEnterObservable.add(() => {
-        startButton.alpha = 1;
+    const playersScrollViewer = new ScrollViewer("playersScrollViewer"); {
+      playersScrollViewer.width = 200 + "px";
+      playersScrollViewer.height = 410 + "px";
+      // playersScrollViewer.top = "0px";
+      playersScrollViewer.left = "110px";
+      playersScrollViewer.barSize = 5;
+      playersScrollViewer.barColor = "white";
+      playersScrollViewer.background = "transparent";
+      playersScrollViewer.thickness = 0;
+      this.ui.addControl(playersScrollViewer);
+    }
+
+    const playersTitle = new TextBlock("playersTitle", "Players:"); {
+      playersTitle.parent = playersScrollViewer;
+      playersTitle.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+      playersTitle.width = "100%";
+      playersTitle.height = "50px";
+      playersTitle.top = "20px";
+      playersTitle.fontSize = 38 + "px";
+      playersTitle.color = "white";
+      playersScrollViewer.addControl(playersTitle);
+    }
+
+    const playersBlock = new Rectangle("playersBlock"); {
+      playersBlock.parent = playersScrollViewer;
+      playersBlock.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+      playersBlock.width = "100%";
+      // playersBlock.height = `${nbOfPlayers * 50 - 5}px`;
+      playersBlock.top = "80px";
+      playersBlock.left = "10px";
+      playersBlock.color = "transparent";
+      playersScrollViewer.addControl(playersBlock);
+    }
+
+    const resetplayersButton = Button.CreateSimpleButton("resetplayersButton", "Reset Players"); {
+      resetplayersButton.width = 300 + "px";
+      resetplayersButton.height = 70 + "px";
+      resetplayersButton.top = "240px";
+      resetplayersButton.left = "110px";
+      resetplayersButton.fontSize = 24 + "px";
+      resetplayersButton.color = "white";
+      resetplayersButton.thickness = 0;
+      resetplayersButton.background = "transparent";
+      resetplayersButton.alpha = 0.7;
+      resetplayersButton.onPointerEnterObservable.add(() => {
+        resetplayersButton.alpha = 1;
       });
-      startButton.onPointerOutObservable.add(() => {
-        startButton.alpha = 0.7;
+      resetplayersButton.onPointerOutObservable.add(() => {
+        resetplayersButton.alpha = 0.7;
       });
-      startButton.onPointerClickObservable.add(() => {
+      resetplayersButton.onPointerClickObservable.add(() => {
+        // Reset 
+        this.tournament.playersScrollViewer.players = [];
+        this.tournament.playersScrollViewer.playersBlock.height = `0px`;
+        this.tournament.playersScrollViewer.playersBlock.clearControls();
+      });
+      this.ui.addControl(resetplayersButton);
+    }
+
+    const launchButton = Button.CreateSimpleButton("launchButton", "Launch"); {
+      launchButton.width = 300 + "px";
+      launchButton.height = 70 + "px";
+      launchButton.top = "200px";
+      launchButton.left = "-100px";
+      launchButton.fontSize = 42 + "px";
+      launchButton.color = "white";
+      launchButton.cornerRadius = 20;
+      launchButton.thickness = 0;
+      launchButton.background = "transparent";
+      launchButton.alpha = 0.7;
+      launchButton.onPointerEnterObservable.add(() => {
+        launchButton.alpha = 1;
+      });
+      launchButton.onPointerOutObservable.add(() => {
+        launchButton.alpha = 0.7;
+      });
+      launchButton.onPointerClickObservable.add(() => {
         // Start tournament
+        this.goBackButton.isVisible = false;
+        this.tournamentVisibility(false);
         this.startedType = "tournament";
       });
-      this.ui.addControl(startButton);
+      this.ui.addControl(launchButton);
     }
 
     return {
       title: tournamentTitle,
+      hostText: hostText,
+      hostPlayer: hostPlayer,
       selectSizeText: selectSizeText,
       size4Text: size4Text,
       size8Text: size8Text,
@@ -558,15 +709,70 @@ export default class PgGui {
       addGuestButton: addGuestButton,
       addLoginButton: addLoginButton,
       numberOfAIText: numberOfAIText,
-      startButton: startButton
+      playersScrollViewer: {
+        scrollViewer: playersScrollViewer,
+        title: playersTitle,
+        playersBlock: playersBlock,
+        players: [],
+        isVisible: false
+      },
+      resetplayersButton: resetplayersButton,
+      launchButton: launchButton
     }
+  }
+
+  private tournamentSwitchToPlayersSetting(nbOfPlayers: number) {
+    // Create Tournament back request
+
+    // Hide size selection
+    this.tournament.selectSizeText.isVisible = false;
+    this.tournament.size4Text.isVisible = false;
+    this.tournament.size8Text.isVisible = false;
+    this.tournament.size16Text.isVisible = false;
+
+    // Show players setting and Start button
+
+    this.tournament.playersScrollViewer.players = [];
+    this.tournament.playersScrollViewer.playersBlock.height = `${(nbOfPlayers - 1) * 55}px`;
+    for (let i = 1; i < nbOfPlayers; i++) {
+      const player = new TextBlock(`player${i}`, `Player${i}`); {
+        player.parent = this.tournament.playersScrollViewer.playersBlock;
+        player.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        // player.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM;
+        player.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        player.width = "100%";
+        player.height = "50px";
+        player.top = `${(i - 1) * 55}px`;
+        player.fontSize = 32 + "px";
+        player.color = "white";
+        this.tournament.playersScrollViewer.playersBlock.addControl(player);
+        this.tournament.playersScrollViewer.players.push(player);
+      }
+    }
+    this.tournament.playersScrollViewer.scrollViewer.isVisible = true;
+    this.tournament.addLoginButton.isVisible = true;
+    this.tournament.addGuestButton.isVisible = true;
+    this.tournament.numberOfAIText.text = `Number of AI: ${nbOfPlayers - 1}`;
+    this.tournament.numberOfAIText.isVisible = true;
+    this.tournament.resetplayersButton.isVisible = true;
+    this.tournament.launchButton.isVisible = true;
   }
 
   tournamentVisibility(visible: boolean) {
     Object.values(this.tournament).forEach((obj) => {
       obj.isVisible = visible;
     });
+    this.tournament.playersScrollViewer.scrollViewer.isVisible = visible;
     this.font.isVisible = visible;
+    if (visible) {
+      this.tournament.addLoginButton.isVisible = false;
+      this.tournament.addGuestButton.isVisible = false;
+      this.tournament.numberOfAIText.isVisible = false;
+      this.tournament.playersScrollViewer.scrollViewer.isVisible = false;
+      this.tournament.playersScrollViewer.isVisible = false;
+      this.tournament.resetplayersButton.isVisible = false;
+      this.tournament.launchButton.isVisible = false;
+    }
   }
 
   updateScore(scoreSide: "left" | "right", score: number) {
@@ -582,19 +788,23 @@ export default class PgGui {
   }
 
   showResult() {
-    this.startedType = "";
-    this.menuVisibility(true);
-
     // update win parts
     if (this.score.left.text > this.score.right.text) {
-      this.panel.winParts.player1.text = (parseInt(this.panel.winParts.player1.text) + 1).toString();
-    } else {
       this.panel.winParts.player2.text = (parseInt(this.panel.winParts.player2.text) + 1).toString();
+    } else {
+      this.panel.winParts.player1.text = (parseInt(this.panel.winParts.player1.text) + 1).toString();
     }
 
     // reset score
     this.updateScore("left", 0);
     this.updateScore("right", 0);
+    
+    if (this.startedType != "watchAI") {
+      this.startedType = "";
+      this.resultVisibility(true);
+      return;
+    }
+    this.startedType = "restart";
   }
 
   private initScore() {
@@ -820,5 +1030,140 @@ export default class PgGui {
     this.panel.block.isVisible = visible;
   }
 
-  private initResult() {}
+  private initResult() {
+    const resultTitle = new TextBlock("resultTitle", "RESULT"); {
+      resultTitle.width = 500 + "px";
+      resultTitle.height = 200 + "px";
+      resultTitle.top = "-180px";
+      resultTitle.fontSize = 132 + "px";
+      resultTitle.color = "white";
+      this.ui.addControl(resultTitle);
+    }
+
+    const playerText = new TextBlock("playerText", "Player"); {
+      playerText.width = 300 + "px";
+      playerText.height = 80 + "px";
+      playerText.left = "-120px";
+      playerText.color = "purple";
+      playerText.fontSize = 52 + "px";
+      this.ui.addControl(playerText);
+    }
+
+    const winsText = new TextBlock("winsText", "Wins"); {
+      winsText.width = 300 + "px";
+      winsText.height = 100 + "px";
+      winsText.left = "100px";
+      winsText.color = "green";
+      winsText.fontSize = 82 + "px";
+      winsText.fontWeight = "bold";
+      this.ui.addControl(winsText);
+    }
+
+    const playAgainButton = Button.CreateSimpleButton("playAgainButton", "Play Again"); {
+      playAgainButton.width = 300 + "px";
+      playAgainButton.height = 60 + "px";
+      playAgainButton.top = "100px";
+      playAgainButton.fontSize = 42 + "px";
+      playAgainButton.color = "white";
+      playAgainButton.thickness = 0;
+      playAgainButton.background = "transparent";
+      playAgainButton.alpha = 0.5;
+      playAgainButton.onPointerEnterObservable.add(() => {
+        playAgainButton.color = "purple";
+        playAgainButton.alpha = 1;
+      });
+      playAgainButton.onPointerOutObservable.add(() => {
+        playAgainButton.color = "white";
+        playAgainButton.alpha = 0.5;
+      });
+      playAgainButton.onPointerClickObservable.add(() => {
+        this.resultVisibility(false);
+
+        this.startedType = "restart";
+        // this.startedType = this.oldStartedType;
+      });
+      this.ui.addControl(playAgainButton);
+    }
+
+    const nextMatchButton = Button.CreateSimpleButton("nextMatchButton", "Next Match"); {
+      nextMatchButton.width = 300 + "px";
+      nextMatchButton.height = 60 + "px";
+      nextMatchButton.top = "100px";
+      nextMatchButton.fontSize = 32 + "px";
+      nextMatchButton.color = "white";
+      nextMatchButton.thickness = 0;
+      nextMatchButton.background = "transparent";
+      nextMatchButton.alpha = 0.5;
+      nextMatchButton.isVisible = false;
+      nextMatchButton.onPointerEnterObservable.add(() => {
+        nextMatchButton.color = "purple";
+        nextMatchButton.alpha = 1;
+      });
+      nextMatchButton.onPointerOutObservable.add(() => {
+        nextMatchButton.color = "white";
+        nextMatchButton.alpha = 0.5;
+      });
+      nextMatchButton.onPointerClickObservable.add(() => {
+        this.resultVisibility(false);
+        
+        // this.startedType = this.oldStartedType;
+      });
+      this.ui.addControl(nextMatchButton);
+    }
+
+    const menuButton = Button.CreateSimpleButton("menuButton", "Menu"); {
+      menuButton.width = 300 + "px";
+      menuButton.height = 60 + "px";
+      menuButton.top = "170px";
+      menuButton.fontSize = 32 + "px";
+      menuButton.color = "white";
+      menuButton.thickness = 0;
+      menuButton.background = "transparent";
+      menuButton.alpha = 0.5;
+      menuButton.onPointerEnterObservable.add(() => {
+        menuButton.color = "purple";
+        menuButton.alpha = 1;
+      });
+      menuButton.onPointerOutObservable.add(() => {
+        menuButton.color = "white";
+        menuButton.alpha = 0.5;
+      });
+      menuButton.onPointerClickObservable.add(() => {
+        this.resultVisibility(false);
+
+        this.goBackPage = "result";
+        this.menuVisibility(true);
+
+      });
+      this.ui.addControl(menuButton);
+    }
+
+    return {
+      title: resultTitle,
+      player: playerText,
+      wins: winsText,
+      playAgain: playAgainButton,
+      nextMatch: nextMatchButton,
+      menu: menuButton
+    };
+  }
+
+  resultVisibility(visible: boolean) {
+    Object.values(this.result).forEach((obj) => {
+      obj.isVisible = visible;
+    });
+    this.font.isVisible = visible;
+    if (visible) {
+      if (this.startedType === "tournament") {
+        this.result.playAgain.isVisible = false;
+      } else {
+        this.result.nextMatch.isVisible = false;
+      }
+      if (this.score.left.text > this.score.right.text) {
+        this.result.player.text = this.panel.players.player1.text;
+      } else {
+        this.result.player.text = this.panel.players.player2.text;
+      }
+    }
+  }
 }
